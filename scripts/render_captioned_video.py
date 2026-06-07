@@ -5,7 +5,7 @@ import sys
 import wave
 import subprocess
 
-workspace = "/Users/yashrawat/Downloads/sidework"
+workspace = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 ffmpeg_bin = os.path.join(workspace, "node_modules/ffmpeg-static/ffmpeg")
 if not os.path.exists(ffmpeg_bin):
     ffmpeg_bin = "ffmpeg"
