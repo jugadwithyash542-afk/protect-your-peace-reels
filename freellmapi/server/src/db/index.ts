@@ -23,6 +23,21 @@ export function initDb(dbPath?: string): Database.Database {
   const resolvedPath = dbPath ?? process.env.DB_PATH ?? defaultDbPath;
   const isMemory = resolvedPath === ':memory:';
 
+  if (isVercel && resolvedPath === '/tmp/freeapi.db' && !fs.existsSync(resolvedPath)) {
+    if (fs.existsSync(DB_PATH)) {
+      try {
+        const dataDir = path.dirname(resolvedPath);
+        if (!fs.existsSync(dataDir)) {
+          fs.mkdirSync(dataDir, { recursive: true });
+        }
+        fs.copyFileSync(DB_PATH, resolvedPath);
+        console.log(`Copied database bundle from ${DB_PATH} to ${resolvedPath}`);
+      } catch (e: any) {
+        console.error('Failed to copy database bundle to /tmp:', e.message);
+      }
+    }
+  }
+
   if (!isMemory) {
     const dataDir = path.dirname(resolvedPath);
     if (!fs.existsSync(dataDir)) {
