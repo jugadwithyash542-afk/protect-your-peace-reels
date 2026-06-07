@@ -18,16 +18,22 @@ app.use('/generated-audio', express.static(path.join(__dirname, 'generated-audio
 // Serve index.html and other static landing page files
 app.use(express.static(path.join(__dirname, 'landing-page')));
 
-// API endpoint to generate and render the reel
-app.post('/api/generate-reel', (req, res) => {
+// API endpoint to generate and render the reel (supports both GET and POST)
+app.all('/api/generate-reel', (req, res) => {
+  // Support both headers (Bearer) and query parameters (apikey)
   const authHeader = req.headers.authorization;
+  const tokenFromHeader = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null;
+  const tokenFromQuery = req.query.apikey || req.query.apiKey;
+  const token = tokenFromHeader || tokenFromQuery;
+
   const expectedToken = process.env.API_KEY || process.env.FREELLM_API_KEY;
 
-  if (!authHeader || authHeader.replace(/^Bearer\s+/i, '') !== expectedToken) {
+  if (!token || token !== expectedToken) {
     return res.status(401).json({ success: false, error: 'Unauthorized. Invalid or missing API key.' });
   }
 
-  const query = req.body.query || 'random';
+  // Support both body and query parameters for options
+  const query = req.query.query || req.body.query || 'random';
   console.log(`[Render Server] Generating reel with query: ${query}`);
 
   // Run the generator and renderer script
