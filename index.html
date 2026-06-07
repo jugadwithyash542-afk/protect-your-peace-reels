@@ -1,0 +1,772 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Protect Your Peace — Reclaim Your Peace & Boundaries 💖</title>
+    <meta name="description" content="Sis, we know you're tired. Reclaim your time, energy, and peace with our interactive copy-paste boundary scripts.">
+    <!-- Google Fonts -->
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700&family=Playfair+Display:ital,wght@0,400;0,600;0,700;1,400&display=swap" rel="stylesheet">
+    <!-- Remix Icon CDN -->
+    <link href="https://cdn.jsdelivr.net/npm/remixicon@4.2.0/fonts/remixicon.css" rel="stylesheet">
+    <!-- Stylesheet -->
+    <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+    <!-- Grain overlay for that premium texture -->
+    <div class="grain-overlay"></div>
+
+    <div class="app-container">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="logo-container">
+                <span class="logo-text">Protect Your Peace</span>
+                <span class="logo-dot">💖</span>
+            </div>
+            <!-- Top Store Link CTA -->
+            <a href="#pricing" class="header-cta-btn" id="header-store-link">
+                <span>Get the Toolkit</span>
+                <i class="ri-arrow-right-up-line"></i>
+            </a>
+        </header>
+
+        <!-- Main Content Layout -->
+        <main class="main-content">
+            
+            <!-- Hero / Emotional Hook Section -->
+            <section class="hero-section">
+                <div class="hero-grid">
+                    <div class="hero-text-col">
+                        <div class="hero-badge">
+                            <i class="ri-sparkling-fill"></i>
+                            <span>Best-Selling Digital Toolkit</span>
+                        </div>
+                        <h1 class="hero-title">Sis, we know you’re tired.</h1>
+                        <p class="hero-subtitle">Not the kind of tired that a good night’s sleep can fix. But the bone-deep exhaustion of carrying everything for everyone. Let’s figure out what’s draining you and copy-paste your way to peace.</p>
+                        <div class="hero-cta-container">
+                            <a href="#pricing" class="primary-btn hero-store-btn-custom">
+                                <span>Get the Complete Boundary Toolkit</span>
+                                <i class="ri-arrow-down-line"></i>
+                            </a>
+                        </div>
+                    </div>
+                    <div class="hero-image-col">
+                        <div class="hero-mockup-wrapper">
+                            <img src="images/protect_your_peace_mockup.png" alt="Protect Your Peace Ebook Mockup on Tablet" class="hero-mockup-img">
+                            <div class="hero-mockup-glow"></div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Interactive Quiz Section -->
+            <section class="quiz-section">
+                <div class="glass-card" id="quiz-card">
+                    <div class="quiz-header">
+                        <span class="step-badge">Quick Check-in</span>
+                        <h2>How are you feeling right now?</h2>
+                        <p>Select the situation that is draining your battery the most.</p>
+                    </div>
+
+                    <form id="feeling-form" class="feeling-options">
+                        <label class="option-card">
+                            <input type="radio" name="feeling" value="work" required>
+                            <div class="option-content">
+                                <i class="ri-briefcase-line option-icon"></i>
+                                <div class="option-text">
+                                    <h3>Drained by my boss / clients</h3>
+                                    <p>I'm dealing with scope-creep and working late nights.</p>
+                                </div>
+                                <span class="custom-radio"></span>
+                            </div>
+                        </label>
+
+                        <label class="option-card">
+                            <input type="radio" name="feeling" value="home">
+                            <div class="option-content">
+                                <i class="ri-home-4-line option-icon"></i>
+                                <div class="option-text">
+                                    <h3>Tired of managing my household</h3>
+                                    <p>I'm running a 24/7 mental chore list for everyone.</p>
+                                </div>
+                                <span class="custom-radio"></span>
+                            </div>
+                        </label>
+
+                        <label class="option-card">
+                            <input type="radio" name="feeling" value="social">
+                            <div class="option-content">
+                                <i class="ri-cup-line option-icon"></i>
+                                <div class="option-text">
+                                    <h3>Guilty about saying "no" to friends</h3>
+                                    <p>I have zero social battery but hate letting people down.</p>
+                                </div>
+                                <span class="custom-radio"></span>
+                            </div>
+                        </label>
+
+                        <label class="option-card">
+                            <input type="radio" name="feeling" value="family">
+                            <div class="option-content">
+                                <i class="ri-heart-line option-icon"></i>
+                                <div class="option-text">
+                                    <h3>Stressed by family expectations</h3>
+                                    <p>I'm overwhelmed by pushy family members or in-laws.</p>
+                                </div>
+                                <span class="custom-radio"></span>
+                            </div>
+                        </label>
+
+                        <label class="option-card">
+                            <input type="radio" name="feeling" value="sorry">
+                            <div class="option-content">
+                                <i class="ri-chat-delete-line option-icon"></i>
+                                <div class="option-text">
+                                    <h3>Tired of apologizing for existing</h3>
+                                    <p>I say "sorry" all day long, even for the smallest things.</p>
+                                </div>
+                                <span class="custom-radio"></span>
+                            </div>
+                        </label>
+
+                        <button type="submit" class="primary-btn">
+                            <span>Let's Talk</span>
+                            <i class="ri-arrow-right-line"></i>
+                        </button>
+                    </form>
+                </div>
+
+                <!-- Results / Diagnosis Section (Hidden by default) -->
+                <!--
+                PAST: The landing page results screen only displayed a single, hardcoded script with a generic Lemonsqueezy link.
+                ISSUE: The user felt the page had only 1-3 variations and lacked product context, making the $19.99 purchase feel unearned and forced.
+                PRESENT: Added an interactive 3-level tab switcher (Soft & Warm, Clear & Firm, Protective) for the script card, and appended module details and Before/After shifts.
+                RATIONALE: Tabbing showcases the guide's multi-level structure immediately, and the detailed preview sections allow the user to make a self-motivated decision to buy.
+                -->
+                <div class="glass-card hidden" id="results-card">
+                    <!-- Loading State -->
+                    <div class="loading-state" id="results-loading">
+                        <div class="spinner"></div>
+                        <p>Pouring a cup of tea, hold on sis...</p>
+                    </div>
+
+                    <!-- Main Results Content -->
+                    <div class="results-content hidden" id="results-actual">
+                        <div class="results-header">
+                            <button type="button" class="back-btn" id="quiz-back-btn">
+                                <i class="ri-arrow-left-line"></i>
+                                <span>Check in again</span>
+                            </button>
+                            <span class="diagnosis-badge">Sisterly Diagnosis</span>
+                        </div>
+
+                        <div class="diagnosis-text-container">
+                            <h2 id="diagnosis-title">Your Diagnosis</h2>
+                            <p id="diagnosis-description" class="diagnosis-para">We validate how you feel...</p>
+                        </div>
+
+                        <div class="script-card">
+                            <div class="script-card-header">
+                                <span class="card-label"><i class="ri-file-copy-2-line"></i> Copy-Paste Script</span>
+                                <span class="card-help">Tweak the bracketed text to make it yours!</span>
+                            </div>
+                            <!-- Interactive script level switcher tabs -->
+                            <div class="script-switcher" role="radiogroup" aria-label="Choose boundary tone">
+                                <button type="button" class="switcher-btn active" data-level="soft" role="radio" aria-checked="true" id="btn-tone-soft">
+                                    <i class="ri-heart-line"></i> Soft & Warm
+                                </button>
+                                <button type="button" class="switcher-btn" data-level="firm" role="radio" aria-checked="false" id="btn-tone-firm">
+                                    <i class="ri-shield-line"></i> Clear & Firm
+                                </button>
+                                <button type="button" class="switcher-btn" data-level="protective" role="radio" aria-checked="false" id="btn-tone-protective">
+                                    <i class="ri-lock-line"></i> Protective
+                                </button>
+                            </div>
+                            <div class="script-body">
+                                <p id="script-content">The text of the script goes here...</p>
+                            </div>
+                            <button type="button" class="copy-btn" id="copy-script-btn">
+                                <i class="ri-clipboard-line btn-icon"></i>
+                                <span class="btn-text">Copy Script</span>
+                            </button>
+                        </div>
+
+                        <!-- CTA Offer -->
+                        <div class="product-promo-box">
+                            <div class="promo-text">
+                                <h3>Need more scripts like this?</h3>
+                                <p>Get 100+ copy-paste boundary templates for work, family, partners, and friends inside the complete guide.</p>
+                            </div>
+                            <a href="https://girls-talk.lemonsqueezy.com/checkout/buy/15e5abdf-6c57-4e14-93ae-fb9b0d58a7f3" target="_blank" class="promo-btn" id="results-promo-link">
+                                <span>Get the Complete Toolkit</span>
+                                <i class="ri-arrow-right-up-line"></i>
+                            </a>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Outcomes & Methodology Section -->
+            <section class="outcomes-section" id="outcomes-method">
+                <div class="section-header">
+                    <span class="eyebrow">The Transformation</span>
+                    <h2>Reclaim Your Peace: The Outcomes & The Method</h2>
+                    <p>This isn't a book of theory. It's a practical toolkit designed to give you concrete daily outcomes using a clear, repeatable methodology.</p>
+                </div>
+
+                <div class="outcomes-container glass-card">
+                    <!-- Tabs selector for the 5 major outcomes -->
+                    <div class="outcomes-tabs" role="tablist" aria-label="Key Outcomes Selector">
+                        <button type="button" class="outcome-tab active" data-outcome="time" role="tab" aria-selected="true" aria-controls="outcome-panel-time" id="tab-time">
+                            <i class="ri-time-line"></i>
+                            <span>Reclaim Weekend & Evening Time</span>
+                        </button>
+                        <button type="button" class="outcome-tab" data-outcome="guilt" role="tab" aria-selected="false" aria-controls="outcome-panel-guilt" id="tab-guilt">
+                            <i class="ri-heart-pulse-line"></i>
+                            <span>Erase Guilt & Stomach Drops</span>
+                        </button>
+                        <button type="button" class="outcome-tab" data-outcome="load" role="tab" aria-selected="false" aria-controls="outcome-panel-load" id="tab-load">
+                            <i class="ri-home-smile-line"></i>
+                            <span>Share the Mental Load</span>
+                        </button>
+                        <button type="button" class="outcome-tab" data-outcome="career" role="tab" aria-selected="false" aria-controls="outcome-panel-career" id="tab-career">
+                            <i class="ri-briefcase-line"></i>
+                            <span>Command Professional Authority</span>
+                        </button>
+                        <button type="button" class="outcome-tab" data-outcome="finance" role="tab" aria-selected="false" aria-controls="outcome-panel-finance" id="tab-finance">
+                            <i class="ri-money-dollar-circle-line"></i>
+                            <span>Awkward-Free Financial Comfort</span>
+                        </button>
+                    </div>
+
+                    <!-- Dynamic Panels -->
+                    <div class="outcome-panels">
+                        <!-- Panel 1: Time -->
+                        <div class="outcome-panel active" id="outcome-panel-time" role="tabpanel" aria-labelledby="tab-time">
+                            <div class="outcome-panel-grid">
+                                <div class="panel-column outcome-benefit">
+                                    <span class="panel-badge benefit-badge">The Outcome</span>
+                                    <h3>Your evenings and weekends belong entirely to you</h3>
+                                    <p class="panel-text">Imagine closing your laptop at 5 PM on Friday and not checking a single notification, email, or Slack message until Monday morning. You enjoy dinners, hobbies, and sleep without the low-hum anxiety of work hanging over your head.</p>
+                                    <ul class="benefit-list">
+                                        <li><i class="ri-checkbox-circle-fill"></i> No unpaid overtime creep</li>
+                                        <li><i class="ri-checkbox-circle-fill"></i> Zero anxiety when logging off</li>
+                                        <li><i class="ri-checkbox-circle-fill"></i> Rest that actually recharges you</li>
+                                    </ul>
+                                </div>
+                                <div class="panel-column outcome-methodology">
+                                    <span class="panel-badge method-badge">How You Get It</span>
+                                    <h3>The Priority Tradeoff Framework</h3>
+                                    <p class="panel-text">Inside the toolkit, you get the exact Work Scope-Creep scripts and out-of-hours templates. These are designed to turn open-ended demands into clear, professional choices for your boss, making your limits respected and unarguable.</p>
+                                    <div class="method-card-mini">
+                                        <span class="method-mini-title">Key Tool Inside:</span>
+                                        <p class="method-mini-desc"><strong>Part 4: Work scope-creep templates</strong> with graded Soft, Firm, and Protective tones depending on your boss's style.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel 2: Guilt -->
+                        <div class="outcome-panel" id="outcome-panel-guilt" role="tabpanel" aria-labelledby="tab-guilt" style="display: none;">
+                            <div class="outcome-panel-grid">
+                                <div class="panel-column outcome-benefit">
+                                    <span class="panel-badge benefit-badge">The Outcome</span>
+                                    <h3>Saying "no" without the stomach drop</h3>
+                                    <p class="panel-text">Saying no to social events, high-maintenance requests, or pushy favors shouldn't make you sweat or spend 20 minutes drafting a reply. Reclaim the ability to state your boundaries with a calm mind and absolute certainty.</p>
+                                    <ul class="benefit-list">
+                                        <li><i class="ri-checkbox-circle-fill"></i> End the texting anxiety loop</li>
+                                        <li><i class="ri-checkbox-circle-fill"></i> No more making up fake excuses</li>
+                                        <li><i class="ri-checkbox-circle-fill"></i> Quiet confidence in your choices</li>
+                                    </ul>
+                                </div>
+                                <div class="panel-column outcome-methodology">
+                                    <span class="panel-badge method-badge">How You Get It</span>
+                                    <h3>The 10-Minute Frozen Protocol</h3>
+                                    <p class="panel-text">We give you a structured psychological buffer to interrupt the automatic "yes" compliance reflex. You'll learn to pause your nervous system, apply the check-in buffer, and copy a warm, clear tone that leaves no hooks for negotiation.</p>
+                                    <div class="method-card-mini">
+                                        <span class="method-mini-title">Key Tool Inside:</span>
+                                        <p class="method-mini-desc"><strong>Part 6: Screenshot-ready Grounding Cards</strong> kept on your phone for immediate reassurance when a guilt spiral starts.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel 3: Load -->
+                        <div class="outcome-panel" id="outcome-panel-load" role="tabpanel" aria-labelledby="tab-load" style="display: none;">
+                            <div class="outcome-panel-grid">
+                                <div class="panel-column outcome-benefit">
+                                    <span class="panel-badge benefit-badge">The Outcome</span>
+                                    <h3>A true partner, not a delegation manager</h3>
+                                    <p class="panel-text">Stop carrying the 24/7 mental spreadsheet of tracking groceries, scheduling chores, and reminding everyone else of their duties. Shift from being the household manager to sharing a true, balanced life partnership.</p>
+                                    <ul class="benefit-list">
+                                        <li><i class="ri-checkbox-circle-fill"></i> Reclaim 40% of your daily mental space</li>
+                                        <li><i class="ri-checkbox-circle-fill"></i> No more reminding, nagging, or monitoring</li>
+                                        <li><i class="ri-checkbox-circle-fill"></i> Partner takes independent ownership</li>
+                                    </ul>
+                                </div>
+                                <div class="panel-column outcome-methodology">
+                                    <span class="panel-badge method-badge">How You Get It</span>
+                                    <h3>The CPE (Conception, Planning, Execution) Ownership Model</h3>
+                                    <p class="panel-text">Learn how to hand over tasks from start to finish. Our scripts help you establish full task ownership with your partner, so they notice the need, plan the details, and execute the task without you thinking about it once.</p>
+                                    <div class="method-card-mini">
+                                        <span class="method-mini-title">Key Tool Inside:</span>
+                                        <p class="method-mini-desc"><strong>Part 1: The "Just Tell Me What to Do" solution</strong> and partner boundary delegation frameworks.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel 4: Career -->
+                        <div class="outcome-panel" id="outcome-panel-career" role="tabpanel" aria-labelledby="tab-career" style="display: none;">
+                            <div class="outcome-panel-grid">
+                                <div class="panel-column outcome-benefit">
+                                    <span class="panel-badge benefit-badge">The Outcome</span>
+                                    <h3>Respected authority and clear workspace scope</h3>
+                                    <p class="panel-text">Stop being the default organizer of office parties, the automatic note-taker, or the colleague who absorbs everyone else's unfinished tasks. Reclaim your focus for the high-impact work that actually leads to raises and promotions.</p>
+                                    <ul class="benefit-list">
+                                        <li><i class="ri-checkbox-circle-fill"></i> Respected by colleagues and leadership</li>
+                                        <li><i class="ri-checkbox-circle-fill"></i> High visibility on your core responsibilities</li>
+                                        <li><i class="ri-checkbox-circle-fill"></i> Professional, firm, and helpful positioning</li>
+                                    </ul>
+                                </div>
+                                <div class="panel-column outcome-methodology">
+                                    <span class="panel-badge method-badge">How You Get It</span>
+                                    <h3>The Quality Shield Framework</h3>
+                                    <p class="panel-text">Instead of sounding unhelpful, learn how to frame your boundary as a commitment to maintaining high-quality outcomes. Our professional scripts show you how to say no while reinforcing your dedication to excellence.</p>
+                                    <div class="method-card-mini">
+                                        <span class="method-mini-title">Key Tool Inside:</span>
+                                        <p class="method-mini-desc"><strong>Part 2: The "I Don't" vs. "I Can't" rule</strong> and the vital VitalSmarts-backed framing statements.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+
+                        <!-- Panel 5: Finance -->
+                        <div class="outcome-panel" id="outcome-panel-finance" role="tabpanel" aria-labelledby="tab-finance" style="display: none;">
+                            <div class="outcome-panel-grid">
+                                <div class="panel-column outcome-benefit">
+                                    <span class="panel-badge benefit-badge">The Outcome</span>
+                                    <h3>Awkward-free financial safety & comfort</h3>
+                                    <p class="panel-text">Say goodbye to overspending to fit in, anxiety over awkward bill splits, or feeling pressured to lend money to family and friends. Keep your budget safe and focus on your financial goals with warm, clear boundaries.</p>
+                                    <ul class="benefit-list">
+                                        <li><i class="ri-checkbox-circle-fill"></i> Clean bills split without awkward comments</li>
+                                        <li><i class="ri-checkbox-circle-fill"></i> Decline expensive group plans comfortably</li>
+                                        <li><i class="ri-checkbox-circle-fill"></i> Keep relationships separate from loans</li>
+                                    </ul>
+                                </div>
+                                <div class="panel-column outcome-methodology">
+                                    <span class="panel-badge method-badge">How You Get It</span>
+                                    <h3>The Money Boundary Mini-Kit</h3>
+                                    <p class="panel-text">Get specific, socially-tested scripts for splitting bills, declining loans, and responding to repeated financial expectations from family, preserving both the budget and the friendship.</p>
+                                    <div class="method-card-mini">
+                                        <span class="method-mini-title">Key Tool Inside:</span>
+                                        <p class="method-mini-desc"><strong>Part 7: Money Boundary Mini-Kit scripts</strong> and decline templates for high-friction monetary scenarios.</p>
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Testimonials Section -->
+            <section class="testimonials-section">
+                <div class="section-header">
+                    <span class="eyebrow">Private Wins</span>
+                    <h2>I shared it privately, and this is what they told me...</h2>
+                    <p>No names. No avatars. Just raw text messages and reviews sent to me after trying the toolkit in real life.</p>
+                </div>
+                <div class="testimonials-grid">
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"used the priority tradeoff email today and my boss literally replied 'no worries, let's chat monday.' i have my weekend back 😭"</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"the level 2 household script... oh my god. my partner actually planned and bought groceries for once, conception to execution. i did not say a word."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"declined my friend's birthday weekend trip because of my battery. i used the soft script and she wrote back saying she totally gets it. zero stomach drop."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"my mother-in-law was pushing about Sunday dinner again. used the firm reply and she stopped negotiating immediately. this is a miracle."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"so glad i stopped saying sorry for replying late at work. replaced it with 'thanks for your patience!' and it changed the whole power dynamic."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"i used to rewrite text messages for 30 minutes before sending. now i copy, paste, fill the brackets, hit send. the time i've saved is insane."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"spotting the triangulation tactics using the red flag dictionary saved me from so much drama last week."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"the pushback replies are an absolute shield. when my sister called me selfish for setting a limit, i just used the broken record script. she gave up."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"the money boundary templates are a lifesaver. split the check awkward-free with my high-maintenance friends."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"set a text response boundary with my group chat. muted, read receipts off, and used the template. zero guilt."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"closed my slack at 5 PM on friday and didn't touch it. used the out-of-hours auto-reply. feels amazing."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"the workbook prompts at the end of each part helped me customize the scripts to sound exactly like me."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"i used the 'broken record' text with a pushy coworker. she finally did the task herself instead of dumping it on me."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"literally sweating before sending the boundary text. hit send, closed my eyes, and got the most peaceful response ever. clear is kind."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"declined lending money to a cousin without sounding cold. preserved the relationship and my budget."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"finally stopped managing everyone's calendar. handed over the planning ownership. my brain has 40% more space now."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"my sister tries to guilt trip me constantly. the soft pushback reply kept my boundaries intact and no fight started."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"used the 'i don't' vs 'i can't' rule at work. coworker respected my boundary instantly."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"my boyfriend was silent treatment-ing me. read the red flag dictionary and used the script. it stopped the cycle immediately."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"the grounding cards saved my sanity during a guilt spiral yesterday."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"copy pasted the text for coworker handoffs. did not take over her unfinished work."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"family members kept commenting on my budget. used the decline template and they changed the topic."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"no more unpaid overtime. my weekends are officially mine again."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"replacing 'sorry to bother you' with 'do you have 5 minutes for X' commanded so much authority at the office."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"ditching fake excuses feels so liberating. just warm, clear boundaries."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"the emergency crisis cards are kept on my home screen. literally used one when my boss texted on Saturday."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"no fight, no explanation, no guilt. just peace."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"my partner took independent ownership of the household chores. feels like a true partnership now."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"spotting silent gaslighting signals early saved me so much heartbreak."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"social battery decline template is goated. my friends were so supportive."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"the text boundary scripts are WhatsApp ready. didn't have to change a word except the names."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"used the quality shield framework at work. boss actually thanked me for focusing on high-quality tasks."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"bill split templates saved me from overspending on dinner last night."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"no more apologizing for existing."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"my family was shocked when i didn't overexplain myself. they just accepted the no. why did i wait so long to get this book?"</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"level 3 protective work script works. boss backed off completely."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"grocery shopping conceiving, planning, and execution is officially off my to-do list."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"declined a high-maintenance request from a friend. no stomach drop, just calm."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"the red flag dictionary is so validating. i thought i was the crazy one."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"whatsapp-ready boundary scripts are the best thing that happened to my texting anxiety."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"stopped office party planning delegation. used the professional pushback script."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"budget is safe, relationships are safe. money boundaries are real."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"the texting frequency boundary text worked wonders with a needy date."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"finally stopped trying to fix everyone's mood. their disappointment is allowed."</p>
+                    </div>
+                    <div class="glass-card testimonial-card">
+                        <p class="testimonial-text">"the interactive workbooks are so good. made the templates feel 100% mine."</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- What's Inside the Ebook Section -->
+            <section class="modules-preview-section" id="modules-preview">
+                <div class="section-header">
+                    <span class="eyebrow">A Sneak Peek Inside</span>
+                    <h2>What We Cover In The Complete Guide</h2>
+                    <p>Sis, this isn't a book of theoretical advice. It's a structured, practical toolkit built for real-life moments across 8 comprehensive chapters:</p>
+                </div>
+                
+                <!--
+                PAST: The landing page preview listed 6 modules, matching the original ebook structure.
+                ISSUE: The toolkit lacked digital/app-specific boundaries and interactive workbook exercises, limiting the perceived value and not matching the updated master guide content.
+                PRESENT: Expanded the Sneak Peek grid to include cards for "Digital & Social Boundaries" and "Sisterly Workbooks".
+                RATIONALE: Highlighting these two additional high-value modules on the landing page elevates the perceived value of the complete guide to justify premium pricing.
+                -->
+                <div class="modules-grid">
+                    <div class="module-card">
+                        <div class="module-icon"><i class="ri-wallet-3-line"></i></div>
+                        <h3>1. Money Without Guilt</h3>
+                        <p>Scripts for declining lending requests, splitting bills fairly, handling expensive plans, and dealing with family financial pressure.</p>
+                    </div>
+                    <div class="module-card">
+                        <div class="module-icon"><i class="ri-briefcase-line"></i></div>
+                        <h3>2. Work Pushback</h3>
+                        <p>Keep your professional scope clear. Templates for overtime requests, coworker handoffs, boss scope-creep, and after-hours messages.</p>
+                    </div>
+                    <div class="module-card">
+                        <div class="module-icon"><i class="ri-home-line"></i></div>
+                        <h3>3. Household & Partner Delegation</h3>
+                        <p>Shift from being the "default household manager" to full-task ownership. Real conversations for dividing mental labor.</p>
+                    </div>
+                    <div class="module-card">
+                        <div class="module-icon"><i class="ri-group-line"></i></div>
+                        <h3>4. Family & Obligation</h3>
+                        <p>Respond to guilt, unexpected demands, and old family expectations without starting a fight or overexplaining yourself.</p>
+                    </div>
+                    <div class="module-card">
+                        <div class="module-icon"><i class="ri-heart-pulse-line"></i></div>
+                        <h3>5. Red Flag Dictionary</h3>
+                        <p>Spot mixed signals, silent treatment, gaslighting, triangulation, and surveillance in relationships—and know exactly what to say.</p>
+                    </div>
+                    <div class="module-card">
+                        <div class="module-icon"><i class="ri-shield-user-line"></i></div>
+                        <h3>6. Pushback & Emergency Replies</h3>
+                        <p>What to say in the exact moment someone reacts badly, sulks, argues, or calls you "selfish" for setting a normal boundary.</p>
+                    </div>
+                    <div class="module-card">
+                        <div class="module-icon"><i class="ri-smartphone-line"></i></div>
+                        <h3>7. Digital & Social Boundaries</h3>
+                        <p>Scripts for texting frequency, response speed, muting toxic chats, read receipts, and keeping your digital footprint private.</p>
+                    </div>
+                    <div class="module-card">
+                        <div class="module-icon"><i class="ri-edit-line"></i></div>
+                        <h3>8. Sisterly Workbooks</h3>
+                        <p>Interactive, fill-in-the-blank workbook prompts at the end of each part to customize the scripts to your personal situations.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Before & After Transformation Section -->
+            <section class="transformation-section" id="why-buy">
+                <div class="transformation-container glass-card">
+                    <div class="transformation-header">
+                        <span class="eyebrow">The Shift</span>
+                        <h2>How Your Daily Communication Changes</h2>
+                        <p>Setting boundaries doesn't mean becoming cold. It means reclaiming the energy that you've been over-giving, so you can show up fully for yourself.</p>
+                    </div>
+                    
+                    <div class="shifts-comparison">
+                        <div class="shift-column before-column">
+                            <h3>How it feels right now</h3>
+                            <ul>
+                                <li>
+                                    <span class="shift-icon"><i class="ri-close-circle-line"></i></span>
+                                    <div>
+                                        <strong>"I need to explain more so they understand."</strong>
+                                        <p>Spending 20 minutes drafting a reply, adding three 'sorry' lines, and stressing about their reaction.</p>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="shift-icon"><i class="ri-close-circle-line"></i></span>
+                                    <div>
+                                        <strong>"If they are upset, I must fix it."</strong>
+                                        <p>Carrying the responsibility of keeping everyone around you in a good mood, even at your own expense.</p>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="shift-icon"><i class="ri-close-circle-line"></i></span>
+                                    <div>
+                                        <strong>"Maybe I am just being too sensitive."</strong>
+                                        <p>Doubting your own memory or discomfort because they tell you it was 'just a joke' or 'no big deal'.</p>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                        
+                        <div class="shift-column after-column">
+                            <h3>How it feels with the toolkit</h3>
+                            <ul>
+                                <li>
+                                    <span class="shift-icon"><i class="ri-checkbox-circle-line"></i></span>
+                                    <div>
+                                        <strong>"Clear is enough. Simple is kind."</strong>
+                                        <p>Choosing a warm, brief response, hitting send, and closing your phone without the guilt spiral.</p>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="shift-icon"><i class="ri-checkbox-circle-line"></i></span>
+                                    <div>
+                                        <strong>"Their disappointment is allowed."</strong>
+                                        <p>Realizing that people are allowed to have their reactions, but you are still allowed to have your limits.</p>
+                                    </div>
+                                </li>
+                                <li>
+                                    <span class="shift-icon"><i class="ri-checkbox-circle-line"></i></span>
+                                    <div>
+                                        <strong>"My feelings are my information."</strong>
+                                        <p>Trusting the repeated patterns of behavior over empty promises, and keeping your peace intact.</p>
+                                    </div>
+                                </li>
+                            </ul>
+                        </div>
+                    </div>
+                    
+                    <div class="transformation-footer">
+                        <p>No one is forcing you to make this shift, sis. But if you are ready to take your backpack off, the toolkit is here for you when you're ready.</p>
+                        <a href="https://girls-talk.lemonsqueezy.com/checkout/buy/15e5abdf-6c57-4e14-93ae-fb9b0d58a7f3" target="_blank" class="primary-btn center-btn" id="transform-promo-btn">
+                            <span>Explore the Complete Kit</span>
+                            <i class="ri-arrow-right-line"></i>
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Pricing / Offer Section -->
+            <section class="pricing-section" id="pricing">
+                <div class="pricing-container glass-card">
+                    <div class="pricing-grid">
+                        <div class="pricing-offer-col">
+                            <span class="pricing-badge">Special Launch Offer</span>
+                            <h2>Get the Complete Boundary Toolkit</h2>
+                            <p class="pricing-intro">Claim the exact copy-paste scripts, red flag guides, and exercises to start saying no with confidence today.</p>
+                            
+                            <ul class="value-stack-list">
+                                <li><i class="ri-checkbox-circle-fill"></i> 100+ Copy-Paste Scripts (Work, Family, Dating, Money)</li>
+                                <li><i class="ri-checkbox-circle-fill"></i> Graded Tones (Soft, Firm, & Protective levels)</li>
+                                <li><i class="ri-checkbox-circle-fill"></i> The Red Flag Dictionary (Spot patterns early)</li>
+                                <li><i class="ri-checkbox-circle-fill"></i> Interactive 📝 Sisterly Workbooks in each chapter</li>
+                                <li><i class="ri-checkbox-circle-fill"></i> 6 emergency crisis cards for immediate relief</li>
+                                <li><i class="ri-checkbox-circle-fill"></i> Lifetime access + all future updates</li>
+                            </ul>
+                        </div>
+                        
+                        <div class="pricing-card-col">
+                            <div class="premium-pricing-card">
+                                <span class="card-eyebrow">Instant Download</span>
+                                <div class="price-container">
+                                    <span class="price-original">$19.99</span>
+                                    <span class="price-current">$9.99</span>
+                                    <span class="price-tax">one-time payment</span>
+                                </div>
+                                <a href="https://girls-talk.lemonsqueezy.com/checkout/buy/15e5abdf-6c57-4e14-93ae-fb9b0d58a7f3" target="_blank" class="primary-btn buy-now-btn">
+                                    <span>Get Instant Access</span>
+                                    <i class="ri-arrow-right-line"></i>
+                                </a>
+                                <div class="secure-badge">
+                                    <i class="ri-shield-check-fill"></i>
+                                    <span>100% Safe & Secure Checkout</span>
+                                </div>
+                                <div class="guarantee-box">
+                                    <p><strong>💖 100% Peace of Mind:</strong> If you read the guide and don't feel a weight lift off your shoulders in the first 14 days, just email us at <a href="mailto:support@justakemycard.com" style="color: var(--color-terracotta); text-decoration: none; font-weight: 600;">support@justakemycard.com</a> for a full refund. No questions, no guilt.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Custom Script Request / Feedback Section -->
+            <section class="request-section" id="request-script">
+                <div class="glass-card request-container">
+                    <div class="request-header">
+                        <span class="eyebrow">Custom Request</span>
+                        <h2>Facing a situation we didn't cover?</h2>
+                        <p>Tell us the situation you're dealing with, and we'll send a custom boundary script straight to your inbox.</p>
+                    </div>
+                    <div class="iframe-wrapper">
+                        <iframe src="https://forms.office.com/r/L9aNzfhbRr?embed=true" frameborder="0" marginwidth="0" marginheight="0" allowfullscreen webkitallowfullscreen mozallowfullscreen msallowfullscreen></iframe>
+                    </div>
+                </div>
+            </section>
+
+            <!-- FAQ Section -->
+            <section class="faq-section">
+                <div class="section-header">
+                    <span class="eyebrow">Your Questions</span>
+                    <h2>Have Some Questions, Sis?</h2>
+                    <p>Here are answers to the most common things women ask before joining the toolkit.</p>
+                </div>
+                <div class="faq-accordion-container">
+                    <div class="faq-item">
+                        <button class="faq-trigger" aria-expanded="false">
+                            <span>How will I receive the toolkit?</span>
+                            <i class="ri-add-line faq-icon"></i>
+                        </button>
+                        <div class="faq-content">
+                            <p>Immediately after checkout, you'll receive a secure link to download the PDF, EPUB, and interactive workbook formats. You can save them directly to your phone, tablet, or laptop and use them whenever your heart is racing and you need words fast.</p>
+                        </div>
+                    </div>
+                    
+                    <div class="faq-item">
+                        <button class="faq-trigger" aria-expanded="false">
+                            <span>What if someone gets angry at my boundary?</span>
+                            <i class="ri-add-line faq-icon"></i>
+                        </button>
+                        <div class="faq-content">
+                            <p>We specifically built Part 5 (Pushback Replies) to address this. It gives you exact, one-sentence comebacks for when people try to negotiate, sulk, call you selfish, or play the victim. You don't have to defend your boundary—you just repeat the ready script.</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-trigger" aria-expanded="false">
+                            <span>Are these scripts really easy to use?</span>
+                            <i class="ri-add-line faq-icon"></i>
+                        </button>
+                        <div class="faq-content">
+                            <p>Yes! They are written in natural, conversational, modern English (WhatsApp-ready). You can easily customize the names, dates, or tasks in brackets [like this] to sound exactly like you before hitting send.</p>
+                        </div>
+                    </div>
+
+                    <div class="faq-item">
+                        <button class="faq-trigger" aria-expanded="false">
+                            <span>Is my payment secure?</span>
+                            <i class="ri-add-line faq-icon"></i>
+                        </button>
+                        <div class="faq-content">
+                            <p>Absolutely. We partner with Lemon Squeezy to process all payments. They use industry-standard bank-level encryption, and your payment information is 100% secure.</p>
+                        </div>
+                    </div>
+                </div>
+            </section>
+        </main>
+
+        <!-- Footer -->
+        <footer class="app-footer">
+            <p>&copy; 2026 Protect Your Peace. All rights reserved. You don't have to carry it all. 💖</p>
+            <p style="margin-top: 0.75rem; font-size: 0.82rem; opacity: 0.85;">Need support? Reach out to <a href="mailto:support@justakemycard.com" style="color: var(--color-terracotta); text-decoration: none; font-weight: 500;">support@justakemycard.com</a></p>
+        </footer>
+    </div>
+
+    <!-- Script -->
+    <script type="module" src="app.js"></script>
+</body>
+</html>

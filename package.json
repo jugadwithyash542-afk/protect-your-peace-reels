@@ -1,0 +1,27 @@
+{
+  "name": "kokoro-side-by-side-voice",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite --host 127.0.0.1",
+    "llm": "npm run dev -w server --prefix freellmapi",
+    "tts:fastapi": "docker run --rm -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest",
+    "test:scripts": "node scripts/script-generation-smoke.mjs",
+    "test:audio": "node scripts/kokoro-fastapi-smoke.mjs",
+    "generate:nurture": "node scripts/generate-marketing-script.mjs random",
+    "generate:reel": "node scripts/generate-marketing-script.mjs random && python3 scripts/render_captioned_video.py",
+    "build": "vite build",
+    "preview": "vite preview --host 127.0.0.1"
+  },
+  "dependencies": {
+    "@vitejs/plugin-react": "^5.1.1",
+    "ffmpeg-static": "^5.3.0",
+    "kokoro-js": "^1.2.1",
+    "lucide-react": "^0.555.0",
+    "react": "^19.2.1",
+    "react-dom": "^19.2.1",
+    "typescript": "^5.9.3",
+    "vite": "^7.2.6"
+  }
+}
