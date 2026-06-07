@@ -3,10 +3,12 @@ import Database from 'better-sqlite3';
 import fs from 'fs';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { initEncryptionKey } from '../lib/crypto.js';
+import { initEncryptionKey, encrypt } from '../lib/crypto.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 const DB_PATH = path.resolve(__dirname, '../../data/freeapi.db');
+const isVercel = !!process.env.VERCEL;
+const defaultDbPath = isVercel ? '/tmp/freeapi.db' : DB_PATH;
 
 let db: Database.Database;
 
@@ -18,7 +20,7 @@ export function getDb(): Database.Database {
 }
 
 export function initDb(dbPath?: string): Database.Database {
-  const resolvedPath = dbPath ?? DB_PATH;
+  const resolvedPath = dbPath ?? process.env.DB_PATH ?? defaultDbPath;
   const isMemory = resolvedPath === ':memory:';
 
   if (!isMemory) {
@@ -50,6 +52,7 @@ export function initDb(dbPath?: string): Database.Database {
   migrateModelsV13(db);
   migrateModelsV14(db);
   ensureUnifiedKey(db);
+  seedEnvKeys(db);
 
   console.log(`Database initialized at ${resolvedPath}`);
   return db;
@@ -1264,11 +1267,62 @@ function migrateModelsV14(db: Database.Database) {
 }
 
 function ensureUnifiedKey(db: Database.Database) {
+  const envKey = process.env.UNIFIED_API_KEY;
+  if (envKey) {
+    const existing = db.prepare("SELECT value FROM settings WHERE key = 'unified_api_key'").get() as { value: string } | undefined;
+    if (existing) {
+      if (existing.value !== envKey) {
+        db.prepare("UPDATE settings SET value = ? WHERE key = 'unified_api_key'").run(envKey);
+      }
+    } else {
+      db.prepare("INSERT INTO settings (key, value) VALUES ('unified_api_key', ?)").run(envKey);
+    }
+    console.log(`\n  Using unified API key from environment: ${envKey}\n`);
+    return;
+  }
+
   const existing = db.prepare("SELECT value FROM settings WHERE key = 'unified_api_key'").get() as { value: string } | undefined;
   if (!existing) {
     const key = `freellmapi-${crypto.randomBytes(24).toString('hex')}`;
     db.prepare("INSERT INTO settings (key, value) VALUES ('unified_api_key', ?)").run(key);
     console.log(`\n  Your unified API key: ${key}\n`);
+  }
+}
+
+function seedEnvKeys(db: Database.Database) {
+  const providers = [
+    { envVar: 'PROVIDER_GOOGLE_KEY', platform: 'google', label: 'Env Google Key' },
+    { envVar: 'PROVIDER_GROQ_KEY', platform: 'groq', label: 'Env Groq Key' },
+    { envVar: 'PROVIDER_CEREBRAS_KEY', platform: 'cerebras', label: 'Env Cerebras Key' },
+    { envVar: 'PROVIDER_SAMBANOVA_KEY', platform: 'sambanova', label: 'Env SambaNova Key' },
+    { envVar: 'PROVIDER_MISTRAL_KEY', platform: 'mistral', label: 'Env Mistral Key' },
+    { envVar: 'PROVIDER_OPENROUTER_KEY', platform: 'openrouter', label: 'Env OpenRouter Key' },
+    { envVar: 'PROVIDER_GITHUB_KEY', platform: 'github', label: 'Env GitHub Key' },
+    { envVar: 'PROVIDER_CLOUDFLARE_KEY', platform: 'cloudflare', label: 'Env Cloudflare Key' },
+    { envVar: 'PROVIDER_COHERE_KEY', platform: 'cohere', label: 'Env Cohere Key' },
+    { envVar: 'PROVIDER_ZAI_KEY', platform: 'zai', label: 'Env Zai Key' },
+    { envVar: 'PROVIDER_NVIDIA_KEY', platform: 'nvidia', label: 'Env Nvidia Key' },
+    { envVar: 'PROVIDER_HUGGINGFACE_KEY', platform: 'huggingface', label: 'Env HuggingFace Key' }
+  ];
+
+  for (const { envVar, platform, label } of providers) {
+    const rawKey = process.env[envVar];
+    if (!rawKey) continue;
+
+    const { encrypted, iv, authTag } = encrypt(rawKey);
+
+    const existing = db.prepare('SELECT id FROM api_keys WHERE platform = ? AND label = ?').get(platform, label) as { id: number } | undefined;
+    if (existing) {
+      db.prepare(
+        'UPDATE api_keys SET encrypted_key = ?, iv = ?, auth_tag = ?, status = ?, enabled = 1 WHERE id = ?'
+      ).run(encrypted, iv, authTag, 'unknown', existing.id);
+      console.log(`Updated environment API key for platform: ${platform}`);
+    } else {
+      db.prepare(
+        'INSERT INTO api_keys (platform, label, encrypted_key, iv, auth_tag, status, enabled) VALUES (?, ?, ?, ?, ?, ?, 1)'
+      ).run(platform, label, encrypted, iv, authTag, 'unknown');
+      console.log(`Seeded environment API key for platform: ${platform}`);
+    }
   }
 }
 
