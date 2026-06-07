@@ -36,8 +36,8 @@ app.all('/api/generate-reel', (req, res) => {
   const query = req.query.query || req.body.query || 'random';
   console.log(`[Render Server] Generating reel with query: ${query}`);
 
-  // Run the generator and renderer script
-  const cmd = `node scripts/generate-marketing-script.mjs "${query}" && python3 scripts/render_captioned_video.py`;
+  // Run the generator, renderer, and upload pipeline scripts
+  const cmd = `node scripts/generate-marketing-script.mjs "${query}" && python3 scripts/render_captioned_video.py && python3 scripts/upload_pipeline.py`;
   
   exec(cmd, { cwd: __dirname }, (error, stdout, stderr) => {
     if (error) {
