@@ -1290,6 +1290,12 @@ function ensureUnifiedKey(db: Database.Database) {
 }
 
 function seedEnvKeys(db: Database.Database) {
+  // If in Vertex mode and vertex credentials are present, make sure Google key is seeded
+  const hasVertexCreds = !!(process.env.VERTEX_KEY_JSON || process.env.VERTEX_KEY_FILE);
+  if (process.env.GOOGLE_API_MODE === 'vertex' && hasVertexCreds && !process.env.PROVIDER_GOOGLE_KEY) {
+    process.env.PROVIDER_GOOGLE_KEY = 'vertex-auth-placeholder';
+  }
+
   const providers = [
     { envVar: 'PROVIDER_GOOGLE_KEY', platform: 'google', label: 'Env Google Key' },
     { envVar: 'PROVIDER_GROQ_KEY', platform: 'groq', label: 'Env Groq Key' },

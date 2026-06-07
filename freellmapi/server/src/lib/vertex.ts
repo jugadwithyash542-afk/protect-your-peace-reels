@@ -24,9 +24,26 @@ function base64url(str: string | Buffer): string {
 export function loadServiceAccount(): ServiceAccountKey {
   if (serviceAccount) return serviceAccount;
 
+  const keyJson = process.env.VERTEX_KEY_JSON;
+  if (keyJson) {
+    try {
+      const parsed = JSON.parse(keyJson);
+      if (parsed.project_id && parsed.private_key && parsed.client_email) {
+        serviceAccount = {
+          project_id: parsed.project_id,
+          private_key: parsed.private_key,
+          client_email: parsed.client_email,
+        };
+        return serviceAccount;
+      }
+    } catch (e: any) {
+      console.error('Failed to parse VERTEX_KEY_JSON environment variable:', e.message);
+    }
+  }
+
   const keyPath = process.env.VERTEX_KEY_FILE;
   if (!keyPath) {
-    throw new Error('VERTEX_KEY_FILE environment variable is not defined.');
+    throw new Error('Neither VERTEX_KEY_JSON nor VERTEX_KEY_FILE environment variables are defined.');
   }
 
   const absolutePath = path.isAbsolute(keyPath)
