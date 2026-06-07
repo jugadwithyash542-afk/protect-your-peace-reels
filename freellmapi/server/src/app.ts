@@ -11,6 +11,7 @@ import { analyticsRouter } from './routes/analytics.js';
 import { healthRouter } from './routes/health.js';
 import { settingsRouter } from './routes/settings.js';
 import { errorHandler } from './middleware/errorHandler.js';
+import { adminAuth } from './middleware/adminAuth.js';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 
@@ -48,12 +49,12 @@ export function createApp() {
   app.use(express.json({ limit: '1mb' }));
 
   // API routes
-  app.use('/api/keys', keysRouter);
-  app.use('/api/models', modelsRouter);
-  app.use('/api/fallback', fallbackRouter);
-  app.use('/api/analytics', analyticsRouter);
-  app.use('/api/health', healthRouter);
-  app.use('/api/settings', settingsRouter);
+  app.use('/api/keys', adminAuth, keysRouter);
+  app.use('/api/models', adminAuth, modelsRouter);
+  app.use('/api/fallback', adminAuth, fallbackRouter);
+  app.use('/api/analytics', adminAuth, analyticsRouter);
+  app.use('/api/health', adminAuth, healthRouter);
+  app.use('/api/settings', adminAuth, settingsRouter);
 
   // OpenAI-compatible proxy
   app.use('/v1', proxyRouter);
