@@ -44,6 +44,19 @@ const BIO_CUES: string[] = [
   "it is there in the bio, quietly waiting",
 ];
 
+// CLOSING_QUESTION ANGLES: directions for the soft, open-ended question that ENDS the script —
+// validate her experience, make her feel understood, then gently ask if she has felt this too
+// (spirit of "have you ever felt this way?"). Turns the reel into a safe-space conversation.
+const CLOSING_QUESTION_ANGLES: string[] = [
+  "softly ask if she has ever felt this exact thing, so she knows she is not the only one",
+  "validate that this is heavy to carry, then ask if she has been quietly carrying it too",
+  "open the door like the start of a late-night talk: ask if any of this sounded like her",
+  "let her know it makes complete sense to feel this, then ask if it lives in her too",
+  "ask, with no judgment, whether she recognised herself anywhere in this",
+  "remind her she is safe here, then ask if she has ever sat with this feeling alone",
+  "wonder aloud whether someone else needed to hear this too, and ask if that someone is her",
+];
+
 const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
 
 const VOICES = [
@@ -79,6 +92,7 @@ type GeneratedScript = {
   performanceDirection: string;
   voiceover: string;
   premiumTeaser: string;
+  closingQuestion: string;
   fullText: string;
 };
 
@@ -748,6 +762,7 @@ async function createPremiumScript(input: { section: string; scenario: string; s
   // Per-run teaser variety seeds — sampled here so each generation differs while the persona holds.
   const teaserAngle = pick(PITCH_ANGLES);
   const teaserBioCue = pick(BIO_CUES);
+  const closingAngle = pick(CLOSING_QUESTION_ANGLES);
   const response = await fetch(`${FREELLM_API_BASE}/v1/chat/completions`, {
     method: "POST",
     headers: {
@@ -761,11 +776,11 @@ async function createPremiumScript(input: { section: string; scenario: string; s
       messages: [
         {
           role: "system",
-          content: buildScriptSystemPrompt(teaserAngle, teaserBioCue),
+          content: buildScriptSystemPrompt(teaserAngle, teaserBioCue, closingAngle),
         },
         {
           role: "user",
-          content: buildScriptUserPrompt(input, teaserAngle, teaserBioCue),
+          content: buildScriptUserPrompt(input, teaserAngle, teaserBioCue, closingAngle),
         },
       ],
     }),
@@ -809,7 +824,7 @@ async function getFreeLlmApiKey() {
   return body.apiKey;
 }
 
-function buildScriptSystemPrompt(teaserAngle: string, teaserBioCue: string) {
+function buildScriptSystemPrompt(teaserAngle: string, teaserBioCue: string, closingAngle: string) {
   // PAST: The hook was a bit descriptive and slow, and the prompt allowed a setup or greeting.
   // ISSUE: The first 3 seconds are what stops the scroll. Any setup, scene description, or greeting slows down the hook. It needs to be an immediate, whisper-led punch.
   // PRESENT: Rewrote rules to mandate that the hook starts directly with a [soft whisper], delivering a single honest observation that makes the listener feel exposed (confessional style).
@@ -841,7 +856,12 @@ function buildScriptSystemPrompt(teaserAngle: string, teaserBioCue: string) {
     "- Point to where the guide lives using THIS idea, reworded naturally: " + teaserBioCue + ".",
     "- You MUST still use a word like 'guide' or 'support'. Keep this in the 'premiumTeaser' field only; keep it completely out of the 'voiceover' field.",
     "- BANNED: do NOT reuse 'tired of feeling small' or 'I put together a guide with actual words to use'. Find your own words.",
-    "Return only compact valid JSON with these string fields: hook, reasonToListen, performanceDirection, voiceover, premiumTeaser.",
+    "THE CLOSING QUESTION (the voiceover must END on this):",
+    "- End the voiceover with ONE soft, open-ended question that validates her experience and makes her feel understood — like opening a safe-space conversation between sisters (the spirit of 'have you ever felt this way?').",
+    "- Validate FIRST (the feeling makes sense, she is not alone), THEN ask. It must feel like 'I am right here with you', never like 'comment below' or engagement bait. No yes/no trap, no advice, no selling.",
+    "- This is the ONLY thing that may follow the emotional body, and it ENDS the voiceover. Lead it with a '[grounded with warmth]' or '[soft whisper]' cue, with a '[long pause]' before it.",
+    "- Write it FRESH around this run's closing ANGLE (do NOT quote it literally): " + closingAngle + ".",
+    "Return only compact valid JSON with these string fields: hook, reasonToListen, performanceDirection, voiceover, premiumTeaser, closingQuestion.",
     "Do not use markdown fences. Do not add commentary. Do not insert unescaped line breaks inside string values."
   ].join("\n");
 }
@@ -850,6 +870,7 @@ function buildScriptUserPrompt(
   input: { section: string; scenario: string; scriptLength: string; model: string },
   teaserAngle: string,
   teaserBioCue: string,
+  closingAngle: string,
 ) {
   return [
     `Section: ${input.section}`,
@@ -859,8 +880,9 @@ function buildScriptUserPrompt(
     "hook: scroll-stopping mind-reading hook line starting with '[soft whisper]', delivering a single raw, honest observation that makes the listener feel exposed (no greetings/scene setup).",
     "reasonToListen: short reason to pay attention.",
     "performanceDirection: short note on the vocal shifts, focusing on the sibling warmth, vulnerability, and empathy.",
-    "voiceover: spoken script. MUST start immediately with the hook (beginning with '[soft whisper]'). MUST use sibling warmth and dynamic shifts (using '[soft whisper]' for raw moments, '[voice cracks]/[soft sigh]' for vulnerability, and '[grounded with warmth]' for protective truth, driven by clear motives) and embrace silence (use '[silence]' or '[long pause]'). Avoid any consistent melody. CRITICAL: Do NOT mention labels (gaslighting, boundaries, etc.), give advice/scripts, or pitch guides in this field.",
+    "voiceover: spoken script. MUST start immediately with the hook (beginning with '[soft whisper]'). MUST use sibling warmth and dynamic shifts (using '[soft whisper]' for raw moments, '[voice cracks]/[soft sigh]' for vulnerability, and '[grounded with warmth]' for protective truth, driven by clear motives) and embrace silence (use '[silence]' or '[long pause]'). Avoid any consistent melody. Do NOT mention labels (gaslighting, boundaries, etc.), give advice/scripts, or pitch guides in this field. It MUST END on the closing question (the closingQuestion you wrote), preceded by a '[long pause]' — nothing after it.",
     `premiumTeaser: one fresh line for the full guide, written in the big-sis voice. Build it around this run's angle: "${teaserAngle}", and point to the guide using this idea reworded naturally: "${teaserBioCue}". Use a word like 'guide' or 'support'. Never reuse the banned phrasings.`,
+    `closingQuestion: ONE soft, open-ended question that ends the reel. Validate her experience first, then ask if she has felt this too — a safe-space conversation opener (spirit of "have you ever felt this way?"). Build it around: "${closingAngle}". Warm, short, no yes/no trap, no advice, no selling. This same line must be the final beat of the voiceover.`,
   ].join("\n");
 }
 
@@ -873,6 +895,9 @@ function parseGeneratedScript(content: string): GeneratedScript {
   const performanceDirection = normalizeGeneratedField(parsed.performanceDirection);
   const voiceover = normalizeGeneratedField(parsed.voiceover);
   const premiumTeaser = normalizeGeneratedField(parsed.premiumTeaser);
+  // closingQuestion is optional at parse level: the voiceover already ends on it, so a missing
+  // top-level field must not fail the run. Capture it when present for display/reference.
+  const closingQuestion = normalizeGeneratedField(parsed.closingQuestion);
 
   if (!hook || !reasonToListen || !performanceDirection || !voiceover || !premiumTeaser) {
     throw new Error("Generated script is missing a required section.");
@@ -884,6 +909,7 @@ function parseGeneratedScript(content: string): GeneratedScript {
     performanceDirection,
     voiceover,
     premiumTeaser,
+    closingQuestion,
     fullText: [
       `Hook: ${hook}`,
       `Why listen: ${reasonToListen}`,
@@ -891,8 +917,9 @@ function parseGeneratedScript(content: string): GeneratedScript {
       "",
       voiceover,
       "",
+      closingQuestion ? `Closing question: ${closingQuestion}` : "",
       `Paid guide teaser: ${premiumTeaser}`,
-    ].join("\n"),
+    ].filter(Boolean).join("\n"),
   };
 }
 

@@ -87,6 +87,20 @@ const BIO_CUES = [
   "it is there in the bio, quietly waiting",
 ];
 
+// CLOSING_QUESTION ANGLES: directions for the soft, open-ended question that ENDS the reel.
+// The point is to turn the video into a safe-space conversation — validate her experience and
+// make her feel understood, then gently ask if she has felt this too (e.g. "have you ever felt
+// this way?"). The model writes a fresh question around the chosen angle each run.
+const CLOSING_QUESTION_ANGLES = [
+  "softly ask if she has ever felt this exact thing, so she knows she is not the only one",
+  "validate that this is heavy to carry, then ask if she has been quietly carrying it too",
+  "open the door like the start of a late-night talk: ask if any of this sounded like her",
+  "let her know it makes complete sense to feel this, then ask if it lives in her too",
+  "ask, with no judgment, whether she recognised herself anywhere in this",
+  "remind her she is safe here, then ask if she has ever sat with this feeling alone",
+  "wonder aloud whether someone else needed to hear this too, and ask if that someone is her",
+];
+
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 // Meta headings to exclude from parsing
@@ -193,6 +207,9 @@ async function main() {
     "",
     "## Sisterly Support & Transition",
     scriptData.pitch,
+    "",
+    "## Closing Question (Safe-Space Conversation Opener)",
+    scriptData.closingQuestion || "",
     "",
     "## Spoken Voiceover",
     `*(${scriptData.performanceDirection})*`,
@@ -460,6 +477,7 @@ async function generateMarketingScript(apiKey, section) {
   // generation differ while the identity below stays constant.
   const pitchAngle = pick(PITCH_ANGLES);
   const bioCue = pick(BIO_CUES);
+  const closingAngle = pick(CLOSING_QUESTION_ANGLES);
 
   const systemPrompt = [
     "You create supportive, raw, and nurturing reels/TikTok scripts for a women's relationship-safety and self-respect guide.",
@@ -490,6 +508,11 @@ async function generateMarketingScript(apiKey, section) {
     "- Point to the guide using THIS idea, reworded naturally so it never sounds scripted: " + bioCue + ".",
     "- It must open with a '[grounded with warmth]' cue, mention a 'guide' offered as 'support', and feel hand-given.",
     "- BANNED: do NOT output the sentence 'I spent a lot of time thinking about how to actually stop this', and do NOT reuse the phrasing 'tired of feeling small' or 'if you need it, the link is in the profile bio'. Find your own words.",
+    "CRITICAL CLOSING QUESTION RULES (the reel must END on this):",
+    "- After the guide transition, end the whole reel with ONE soft, open-ended question that validates her experience and makes her feel understood — like opening a safe-space conversation between sisters (e.g. the *spirit* of 'have you ever felt this way?').",
+    "- It must validate FIRST (let her know the feeling makes sense and she is not alone), THEN ask. It should feel like 'I am right here with you', never like 'comment below' or an engagement-bait CTA.",
+    "- Keep it short, warm, and genuinely open — no yes/no trap, no advice, no selling. Lead it with a '[grounded with warmth]' or '[soft whisper]' cue and let a '[long pause]' sit before it.",
+    "- Write it FRESH around this run's closing ANGLE (do NOT quote it literally): " + closingAngle + ".",
     "CRITICAL TONE RULES FOR THE VOICEOVER FIELD:",
     "- Start the voiceover field immediately with the hook.",
     "- BAN ALL DEFINITIONS & THERAPY LABELS: Never use terms like 'gaslighting', 'love bombing', 'narcissist', 'manipulation', 'red flags', or 'boundaries'. Speak only of the raw physical and mental sensation of the situation.",
@@ -497,7 +520,7 @@ async function generateMarketingScript(apiKey, section) {
     "EMBRACE SILENCE, WARMTH & EMPATHY:",
     "- Focus on organic signs of empathy: include bracketed voice texture and breath cues directly in the voiceover text such as '[soft sigh]', '[voice cracks]', '[catch in throat]', '[tremble]', '[soft whisper]', or '[grounded with warmth]'. Every shift must have a clear motive driven by sibling empathy.",
     "- Insert '[silence]' or '[long pause]' after heavy statements so the realizations sit heavily in the air.",
-    "Return only compact valid JSON representing EXACTLY ONE script object (with keys: title, hook, lesson, pitch, performanceDirection, voiceover). Do NOT wrap it in a list or array. Do NOT output multiple script variants.",
+    "Return only compact valid JSON representing EXACTLY ONE script object (with keys: title, hook, lesson, pitch, closingQuestion, performanceDirection, voiceover). Do NOT wrap it in a list or array. Do NOT output multiple script variants.",
     "Do not use markdown fences. Do not add commentary. Do not insert unescaped line breaks inside string values. Double quotes inside string values must be escaped as \\\"."
   ].join("\n");
 
@@ -512,8 +535,9 @@ async function generateMarketingScript(apiKey, section) {
     '  "hook": "scroll-stopping mind-reading hook line starting with \'[soft whisper]\', delivering a single raw, honest observation that makes the listener feel exposed (no greetings/scene setup).",',
     '  "lesson": "short value teaching lesson based directly on the book context, helping them recognize the situation.",',
     `  "pitch": "YOU write the supportive transition to the guide — do not copy a template. Build it around this run's angle: \\"${pitchAngle}\\", and point to the guide using this idea reworded naturally: \\"${bioCue}\\". Big-sis voice, offered purely as support. No sales pitch, no pricing. Never reuse the banned phrasings from the system rules.",`,
+    `  "closingQuestion": "ONE soft, open-ended question that ENDS the reel. Validate her experience first, then ask if she has felt this too — a safe-space conversation opener (spirit of 'have you ever felt this way?'). Build it around: \\"${closingAngle}\\". Warm, short, no yes/no trap, no advice, no selling. This is the final beat.",`,
     '  "performanceDirection": "short note on the vocal shifts, focusing on the sibling warmth, vulnerability, and empathy.",',
-    '  "voiceover": "spoken script. MUST start immediately with the hook (beginning with \'[soft whisper]\'). Deliver the hook, then the value lesson, then transition seamlessly into the supportive transition (the pitch you wrote). The transition at the end MUST continue the same sibling warmth, care, and protective tone, and must match the \'pitch\' field in meaning. Do NOT break character or sound like a commercial. Use sibling warmth and dynamic shifts (using \'[soft whisper]\' for raw moments, \'[voice cracks]/[soft sigh]\' for vulnerability, and \'[grounded with warmth]\' for protective truth, driven by clear motives) and embrace silence (use \'[silence]\' or \'[long pause]\'). Avoid any consistent melody."',
+    '  "voiceover": "spoken script. MUST start immediately with the hook (beginning with \'[soft whisper]\'). Deliver the hook, then the value lesson, then the supportive transition (the pitch you wrote), and FINALLY end on the closing question (the closingQuestion you wrote), preceded by a \'[long pause]\'. The reel MUST end on that soft validating question — nothing after it. Keep the same sibling warmth throughout; the transition and closing must match the \'pitch\' and \'closingQuestion\' fields in meaning. Do NOT break character or sound like a commercial. Use dynamic shifts (using \'[soft whisper]\' for raw moments, \'[voice cracks]/[soft sigh]\' for vulnerability, and \'[grounded with warmth]\' for protective truth) and embrace silence (use \'[silence]\' or \'[long pause]\'). Avoid any consistent melody."',
     "}"
   ].join("\n");
 
@@ -599,6 +623,11 @@ function parseGeneratedScript(content) {
         throw new Error(`Self-healing parser failed: Missing required field "${field}".`);
       }
     }
+
+    // closingQuestion is optional at the parser level: the voiceover already ends on it, so a
+    // missing top-level field must not fail the whole run. Recover it if present, else default empty.
+    const closing = extractFieldRegex(targetBlock, "closingQuestion");
+    result.closingQuestion = closing !== null ? closing : "";
 
     console.log("🎉 Self-healing parser successfully recovered all fields!");
     return result;
