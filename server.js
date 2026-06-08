@@ -97,13 +97,18 @@ app.get('/api/debug-env', (req, res) => {
   }
 
   const commands = [
+    'whoami',
     'which python3',
     'python3 --version',
     'which pip3',
     'pip3 --version',
     'pip3 list',
+    'python3 -m pip list --user',
+    'ls -la /opt/render/.local/lib/python3.11/site-packages || true',
     'python3 -c "import site; print(site.getusersitepackages())"',
     'python3 -c "import sys; print(sys.path)"',
+    'python3 -c "import site; print(site.ENABLE_USER_SITE)"',
+    'ls -la || true',
     'python3 -c "import requests; print(requests.__file__)"'
   ];
   let output = "";
