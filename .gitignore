@@ -21,3 +21,6 @@ bg/
 
 # Google/Platform OAuth Credentials
 credentials.json
+
+# Local Python target dependencies
+python_packages/

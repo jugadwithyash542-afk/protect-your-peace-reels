@@ -2,6 +2,14 @@
 import os
 import re
 import sys
+
+# Prioritize local python_packages folder for dependencies
+scripts_dir = os.path.dirname(os.path.abspath(__file__))
+workspace_dir = os.path.dirname(scripts_dir)
+local_packages = os.path.join(workspace_dir, 'python_packages')
+if os.path.exists(local_packages):
+    sys.path.insert(0, local_packages)
+
 import site
 site.addsitedir(site.getusersitepackages())
 import wave

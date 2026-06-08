@@ -12,7 +12,7 @@
     "test:audio": "node scripts/kokoro-fastapi-smoke.mjs",
     "generate:nurture": "node scripts/generate-marketing-script.mjs random",
     "generate:reel": "node scripts/generate-marketing-script.mjs random && python3 scripts/render_captioned_video.py",
-    "build": "vite build && (python3 -c \"import sys; sys.exit(0 if sys.base_prefix != sys.prefix or hasattr(sys, 'real_prefix') else 1)\" && python3 -m pip install -r requirements.txt || python3 -m pip install --user -r requirements.txt)",
+    "build": "vite build && python3 -m pip install -r requirements.txt --target ./python_packages",
     "preview": "vite preview --host 127.0.0.1"
   },
   "dependencies": {
