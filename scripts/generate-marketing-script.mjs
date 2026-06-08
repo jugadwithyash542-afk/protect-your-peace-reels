@@ -215,7 +215,7 @@ async function main() {
     scriptData.hashtags || "",
     "",
     "## Spoken Voiceover",
-    `*(${scriptData.performanceDirection})*`,
+    `*(${scriptData.performanceDirection || 'Warm, sisterly, vulnerable.'})*`,
     "",
     scriptData.voiceover
   ].join("\n");
@@ -530,7 +530,7 @@ async function generateMarketingScript(apiKey, section) {
     "- TARGET A FEMALE AUDIENCE HARD: prefer tags that live in women's communities (e.g. #WomenSupportingWomen #GirlTalk #SoftGirlEra #HealingGirlEra #SelfWorth #FeminineEnergy #Sisterhood #ThatGirl) alongside the topic-specific ones. The aim is for Instagram to surface this to women's feeds.",
     "- AVOID gender-neutral / male-skewing tags (e.g. #motivation, #mindset, #success, #hustle, #selfimprovement, #discipline) — they push the reel into mixed or male feeds.",
     "- No emojis inside tags, no duplicates, no banned-phrasing sentences.",
-    "Return only compact valid JSON representing EXACTLY ONE script object (with keys: title, hook, lesson, pitch, closingQuestion, hashtags, performanceDirection, voiceover). Do NOT wrap it in a list or array. Do NOT output multiple script variants.",
+    "Return only compact valid JSON representing EXACTLY ONE script object, with keys IN THIS ORDER: title, hook, lesson, pitch, closingQuestion, voiceover, hashtags, performanceDirection. Do NOT wrap it in a list or array. Do NOT output multiple script variants.",
     "Do not use markdown fences. Do not add commentary. Do not insert unescaped line breaks inside string values. Double quotes inside string values must be escaped as \\\"."
   ].join("\n");
 
@@ -546,9 +546,9 @@ async function generateMarketingScript(apiKey, section) {
     '  "lesson": "short value teaching lesson based directly on the book context, helping them recognize the situation.",',
     `  "pitch": "YOU write the supportive transition to the guide — do not copy a template. Build it around this run's angle: \\"${pitchAngle}\\", and point to the guide using this idea reworded naturally: \\"${bioCue}\\". Big-sis voice, offered purely as support. No sales pitch, no pricing. Never reuse the banned phrasings from the system rules.",`,
     `  "closingQuestion": "ONE soft, open-ended question that ENDS the reel. Validate her experience first, then ask if she has felt this too — a safe-space conversation opener (spirit of 'have you ever felt this way?'). Build it around: \\"${closingAngle}\\". Warm, short, no yes/no trap, no advice, no selling. This is the final beat.",`,
+    '  "voiceover": "spoken script. MUST start immediately with the hook (beginning with \'[soft whisper]\'). Deliver the hook, then the value lesson, then the supportive transition (the pitch you wrote), and FINALLY end on the closing question (the closingQuestion you wrote), preceded by a \'[long pause]\'. The reel MUST end on that soft validating question — nothing after it. Keep the same sibling warmth throughout; the transition and closing must match the \'pitch\' and \'closingQuestion\' fields in meaning. Do NOT break character or sound like a commercial. Use dynamic shifts (using \'[soft whisper]\' for raw moments, \'[voice cracks]/[soft sigh]\' for vulnerability, and \'[grounded with warmth]\' for protective truth) and embrace silence (use \'[silence]\' or \'[long pause]\'). Avoid any consistent melody.",',
     '  "hashtags": "8-12 Instagram hashtags as ONE space-separated string, each starting with #, derived from THIS script\'s specific scenario and feeling. Mix broad + specific; female self-worth/boundaries/relationship niche. No spaces inside tags, no emojis, no duplicates.",',
-    '  "performanceDirection": "short note on the vocal shifts, focusing on the sibling warmth, vulnerability, and empathy.",',
-    '  "voiceover": "spoken script. MUST start immediately with the hook (beginning with \'[soft whisper]\'). Deliver the hook, then the value lesson, then the supportive transition (the pitch you wrote), and FINALLY end on the closing question (the closingQuestion you wrote), preceded by a \'[long pause]\'. The reel MUST end on that soft validating question — nothing after it. Keep the same sibling warmth throughout; the transition and closing must match the \'pitch\' and \'closingQuestion\' fields in meaning. Do NOT break character or sound like a commercial. Use dynamic shifts (using \'[soft whisper]\' for raw moments, \'[voice cracks]/[soft sigh]\' for vulnerability, and \'[grounded with warmth]\' for protective truth) and embrace silence (use \'[silence]\' or \'[long pause]\'). Avoid any consistent melody."',
+    '  "performanceDirection": "short note on the vocal shifts, focusing on the sibling warmth, vulnerability, and empathy."',
     "}"
   ].join("\n");
 
@@ -561,7 +561,11 @@ async function generateMarketingScript(apiKey, section) {
     body: JSON.stringify({
       model: "auto",
       temperature: 0.78,
-      max_tokens: 2400,
+      // PAST: 2400 tokens. ISSUE: adding closingQuestion + hashtags pushed the long voiceover past
+      // the limit, truncating the JSON before voiceover was even produced. PRESENT: 4096 gives
+      // comfortable headroom for the full object. RATIONALE: Gemini Flash supports far larger
+      // outputs; the extra cost is trivial versus a failed reel.
+      max_tokens: 4096,
       response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
@@ -611,7 +615,21 @@ function parseGeneratedScript(content) {
   // Self-healing fallback: extract fields directly using regexes
   try {
     console.log("🩹 Running self-healing regex field extraction...");
-    const fields = ["title", "hook", "lesson", "pitch", "performanceDirection", "voiceover"];
+    // PAST: every field was "required" and a single missing one threw, killing the whole run.
+    // ISSUE: on a truncated response (e.g. token limit), the last fields are simply absent, so the
+    //        reel failed even when the essential spoken content was present.
+    // PRESENT: only `voiceover` is truly required (it is what gets captioned + voiced). Everything
+    //          else falls back to a sensible default so the pipeline keeps going.
+    // RATIONALE: a usable reel should never be blocked by a missing parenthetical note or tag.
+    const FIELD_DEFAULTS = {
+      title: "PROTECT YOUR PEACE",
+      hook: "",
+      lesson: "",
+      pitch: "",
+      closingQuestion: "",
+      hashtags: "",
+      performanceDirection: "Warm, sisterly, vulnerable.",
+    };
     const result = {};
 
     // If it is a list of objects, we target the first object block inside the text
@@ -624,25 +642,19 @@ function parseGeneratedScript(content) {
       }
     }
 
-    for (const field of fields) {
+    for (const [field, fallback] of Object.entries(FIELD_DEFAULTS)) {
       const val = extractFieldRegex(targetBlock, field);
-      if (val !== null) {
-        result[field] = val;
-      } else if (field === 'title') {
-        result[field] = "PROTECT YOUR PEACE"; // Default placeholder
-      } else {
-        throw new Error(`Self-healing parser failed: Missing required field "${field}".`);
-      }
+      result[field] = val !== null ? val : fallback;
     }
 
-    // closingQuestion and hashtags are optional at the parser level (voiceover already ends on the
-    // question; hashtags have a deterministic fallback in the uploader). Recover if present, else "".
-    const closing = extractFieldRegex(targetBlock, "closingQuestion");
-    result.closingQuestion = closing !== null ? closing : "";
-    const tags = extractFieldRegex(targetBlock, "hashtags");
-    result.hashtags = tags !== null ? tags : "";
+    // The ONLY hard requirement: a voiceover to caption + voice.
+    const voiceover = extractFieldRegex(targetBlock, "voiceover");
+    if (voiceover === null || !voiceover.trim()) {
+      throw new Error("Self-healing parser failed: missing the required 'voiceover' field (response likely truncated).");
+    }
+    result.voiceover = voiceover;
 
-    console.log("🎉 Self-healing parser successfully recovered all fields!");
+    console.log("🎉 Self-healing parser recovered the script (defaults applied for any missing fields).");
     return result;
   } catch (healingErr) {
     console.error("❌ Both standard JSON.parse and self-healing regex extraction failed.");

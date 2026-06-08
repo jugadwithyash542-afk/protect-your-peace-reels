@@ -802,11 +802,13 @@ async function createPremiumScript(input: { section: string; scenario: string; s
 }
 
 function getScriptTokenBudget(scriptLength: string) {
+  // Budgets raised to absorb the added closingQuestion + hashtags fields; too small a budget
+  // truncates the JSON before the voiceover finishes (see the pipeline generator note).
   const seconds = Number(scriptLength);
-  if (seconds >= 180) return 4200;
-  if (seconds >= 120) return 3200;
-  if (seconds >= 90) return 2400;
-  return 2000;
+  if (seconds >= 180) return 4600;
+  if (seconds >= 120) return 4096;
+  if (seconds >= 90) return 3400;
+  return 3000;
 }
 
 async function getFreeLlmApiKey() {
