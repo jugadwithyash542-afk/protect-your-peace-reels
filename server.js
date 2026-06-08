@@ -4,6 +4,9 @@ import { fileURLToPath } from 'url';
 import { exec, spawn, execSync } from 'child_process';
 import fs from 'fs';
 
+// Limit glibc memory arena creation to prevent memory fragmentation OOM
+process.env.MALLOC_ARENA_MAX = '2';
+
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
@@ -162,7 +165,7 @@ app.all('/api/generate-reel', (req, res) => {
   fs.writeFileSync(logPath, `=== PIPELINE STARTED: ${timestamp} (query: ${query}) ===\n\n`);
 
   // Run the generator, renderer, and upload pipeline scripts in a memory-bounded shell
-  const cmd = `node --max-old-space-size=128 scripts/generate-marketing-script.mjs "${query}" && python3 scripts/render_captioned_video.py && python3 scripts/upload_pipeline.py`;
+  const cmd = `node --max-old-space-size=96 scripts/generate-marketing-script.mjs "${query}" && python3 scripts/render_captioned_video.py && python3 scripts/upload_pipeline.py`;
   
   const [shell, args] = process.platform === 'win32' ? ['cmd.exe', ['/s', '/c', cmd]] : ['/bin/sh', ['-c', cmd]];
   const child = spawn(shell, args, { cwd: __dirname });
@@ -239,7 +242,7 @@ app.all('/api/test-step', (req, res) => {
   const step = req.query.step || 'generate';
   let cmd = '';
   if (step === 'generate') {
-    cmd = `node --max-old-space-size=128 scripts/generate-marketing-script.mjs "random"`;
+    cmd = `node --max-old-space-size=96 scripts/generate-marketing-script.mjs "random"`;
   } else if (step === 'render') {
     cmd = `python3 scripts/render_captioned_video.py`;
   } else if (step === 'upload') {

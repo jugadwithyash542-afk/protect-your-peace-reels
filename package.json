@@ -4,7 +4,7 @@
   "private": true,
   "type": "module",
   "scripts": {
-    "start": "node --max-old-space-size=192 server.js",
+    "start": "node --max-old-space-size=96 server.js",
     "dev": "vite --host 127.0.0.1",
     "llm": "npm run dev -w server --prefix freellmapi",
     "tts:fastapi": "docker run --rm -p 8880:8880 ghcr.io/remsky/kokoro-fastapi-cpu:latest",
