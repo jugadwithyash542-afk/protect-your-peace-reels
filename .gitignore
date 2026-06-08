@@ -24,3 +24,13 @@ credentials.json
 
 # Local Python target dependencies
 python_packages/
+
+# Local SQLite databases and caches
+*.db
+freellmapi/server/data/freeapi.db
+
+# Dynamically generated config files
+fonts_dynamic.conf
+
+# Scratch folder for one-off scripts
+scratch/

@@ -361,16 +361,74 @@ def create_yoyo_loop_video(input_video_path, temp_reversed_path, temp_yoyo_path)
     subprocess.run(cmd_concat, check=True)
     print(f"Yo-yo seamless loop segment created at: {temp_yoyo_path}")
 
+def get_video_duration(video_path):
+    try:
+        cmd = [ffmpeg_bin, "-i", video_path]
+        result = subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True)
+        output = result.stderr
+        match = re.search(r"Duration:\s*(\d+):(\d+):(\d+\.\d+)", output)
+        if match:
+            hours = int(match.group(1))
+            minutes = int(match.group(2))
+            seconds = float(match.group(3))
+            return hours * 3600 + minutes * 60 + seconds
+    except Exception as e:
+        print(f"Error getting video duration: {e}", file=sys.stderr)
+    return 10.90  # Default fallback
+
+def escape_filter_path(path):
+    # Escape colons and backslashes for FFmpeg filter graph
+    escaped = path.replace("\\", "/").replace(":", "\\:")
+    escaped = escaped.replace("'", "'\\''")
+    return f"'{escaped}'"
+
 def render_video(video_path, audio_path, ass_path, output_path, duration):
     print(f"Rendering Hormozi styled video reel...")
+    
+    outro_video_path = os.path.join(workspace, "Doc/Final/Video Project 1.mp4")
+    has_outro = os.path.exists(outro_video_path)
+    
+    # Calculate relative ass path to avoid absolute path/colon escaping issues
+    rel_ass_path = os.path.relpath(ass_path, workspace)
+    escaped_ass_path = escape_filter_path(rel_ass_path)
+    
+    if has_outro:
+        outro_dur = get_video_duration(outro_video_path)
+        t_bg = duration - outro_dur
+        print(f"[Outro Video] Found at {outro_video_path} (Duration: {outro_dur:.2f}s)")
+        print(f"[Outro Video] Background loop will play for {max(0.0, t_bg):.2f}s, then outro will play.")
+        
+        if t_bg <= 0:
+            # Main audio is shorter than or equal to the outro video, so just show the outro video scaled/resampled
+            filter_graph = f"[2:v]scale=1080:1920,fps=30[v0];[v0]subtitles={escaped_ass_path}[v]"
+        else:
+            # Concatenate scaled background loop and scaled outro video
+            filter_graph = (
+                f"[0:v]trim=end={t_bg:.2f},setpts=PTS-STARTPTS,scale=1080:1920,fps=30[bg];"
+                f"[2:v]trim=end={outro_dur:.2f},setpts=PTS-STARTPTS,scale=1080:1920,fps=30[outro];"
+                f"[bg][outro]concat=n=2:v=1:a=0[vconcat];"
+                f"[vconcat]subtitles={escaped_ass_path}[v]"
+            )
+    else:
+        print("[Outro Video] Not found, rendering with full background loop only.")
+        filter_graph = f"[0:v]scale=1080:1920,fps=30[v0];[v0]subtitles={escaped_ass_path}[v]"
+        
     cmd = [
         ffmpeg_bin,
         "-threads", "1",               # Enforce 1 thread globally (critical for decoder/filter/encoder memory)
         "-y",
         "-stream_loop", "-1",          # Loop the input video infinitely
-        "-i", video_path,              # Input yo-yo looped video
-        "-i", audio_path,              # Input audio (mixed voiceover)
-        "-vf", f"subtitles={ass_path}",# Burn ASS subtitles
+        "-i", video_path,              # Input 0: yo-yo looped video
+        "-i", audio_path,              # Input 1: mixed voiceover audio
+    ]
+    
+    if has_outro:
+        cmd.extend(["-i", outro_video_path]) # Input 2: Video Project 1.mp4
+        
+    cmd.extend([
+        "-filter_complex", filter_graph,
+        "-map", "[v]",                 # Map the video output from the filter graph
+        "-map", "1:a:0",               # Map the audio from the wave file (main audio)
         "-c:v", "libx264",             # H.264 video codec
         "-preset", "ultrafast",        # Memory-efficient encoding preset
         "-tune", "zerolatency",        # Memory-efficient tuning
@@ -378,11 +436,9 @@ def render_video(video_path, audio_path, ass_path, output_path, duration):
         "-crf", "22",                  # Constant Rate Factor for good quality
         "-c:a", "aac",                 # AAC audio codec
         "-b:a", "192k",                # Audio bitrate
-        "-map", "0:v:0",               # Map video stream from video file
-        "-map", "1:a:0",               # Map audio stream from audio file
         "-t", f"{duration:.2f}",       # Cap video length to match audio exactly
         output_path
-    ]
+    ])
     
     subprocess.run(cmd, check=True)
     print(f"Successfully rendered video: {output_path}")

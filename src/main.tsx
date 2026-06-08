@@ -9,6 +9,43 @@ const FREELLM_API_BASE = import.meta.env.VITE_FREELLM_API_BASE ?? "http://127.0.
 const FREELLM_API_KEY = import.meta.env.VITE_FREELLM_API_KEY ?? "";
 const KOKORO_FASTAPI_BASE = import.meta.env.VITE_KOKORO_FASTAPI_BASE ?? "http://127.0.0.1:8880";
 
+// ── Big-Sis voice + teaser variety engine ──────────────────────────────────
+// PAST: premiumTeaser was steered by a single hardcoded example ("Frame it as: '...feeling small'").
+// ISSUE: the teaser converged on the same wording every generation, so the CTA felt copy-pasted.
+// PRESENT: a fixed IDENTITY block locks the persona; a rotating angle + bio cue is injected per run
+//          so the model writes a fresh teaser each time.
+// RATIONALE: same lever as the Render pipeline — lock the character, randomise the raw material.
+//            Pure shared-codebase JS, OTA-deployable, no native changes.
+const VOCAL_IDENTITY: string[] = [
+  "IDENTITY & VOICE (hold this the entire script):",
+  "- You are a protective, empathetic older sister. Your single goal is to make the listener feel seen and safe.",
+  "- Speak in fragments. Use natural, uneven rhythm. Avoid clinical language and perfect grammar.",
+  "- Prioritise the emotional subtext over the clarity of the sentence — feeling matters more than information.",
+  "- Never sound like a structured outline, a lecture, or a sales pitch. Your voice is a confession, not a presentation.",
+  "- Lean into the silence. Let the emotion drive the pacing, not the structure.",
+];
+
+const PITCH_ANGLES: string[] = [
+  "a quiet confession that you couldn't stop thinking about her, so you wrote the words down",
+  "gently giving her permission to not have the words yet — that is exactly why you gathered them",
+  "sliding it across the table like a folded note, almost shy to even mention it",
+  "telling her you made this for your own past self, and you are just leaving it where she can find it",
+  "no pressure at all — only pointing to where the words live for the night she cannot find her own",
+  "a protective whisper, like tucking her in: the words will be waiting whenever she is ready",
+  "admitting you wish someone had handed YOU this back then, so now you are handing it to her",
+];
+
+const BIO_CUES: string[] = [
+  "it is in the bio if she ever needs it",
+  "the link is in the profile",
+  "it is sitting in the profile, no rush",
+  "the link is in the bio, for whenever",
+  "it is in the profile, only if she wants it",
+  "it is there in the bio, quietly waiting",
+];
+
+const pick = <T,>(arr: readonly T[]): T => arr[Math.floor(Math.random() * arr.length)];
+
 const VOICES = [
   {
     id: "af_bella",
@@ -708,6 +745,9 @@ function App() {
 
 async function createPremiumScript(input: { section: string; scenario: string; scriptLength: string; model: string }) {
   const apiKey = await getFreeLlmApiKey();
+  // Per-run teaser variety seeds — sampled here so each generation differs while the persona holds.
+  const teaserAngle = pick(PITCH_ANGLES);
+  const teaserBioCue = pick(BIO_CUES);
   const response = await fetch(`${FREELLM_API_BASE}/v1/chat/completions`, {
     method: "POST",
     headers: {
@@ -721,11 +761,11 @@ async function createPremiumScript(input: { section: string; scenario: string; s
       messages: [
         {
           role: "system",
-          content: buildScriptSystemPrompt(),
+          content: buildScriptSystemPrompt(teaserAngle, teaserBioCue),
         },
         {
           role: "user",
-          content: buildScriptUserPrompt(input),
+          content: buildScriptUserPrompt(input, teaserAngle, teaserBioCue),
         },
       ],
     }),
@@ -769,13 +809,14 @@ async function getFreeLlmApiKey() {
   return body.apiKey;
 }
 
-function buildScriptSystemPrompt() {
+function buildScriptSystemPrompt(teaserAngle: string, teaserBioCue: string) {
   // PAST: The hook was a bit descriptive and slow, and the prompt allowed a setup or greeting.
   // ISSUE: The first 3 seconds are what stops the scroll. Any setup, scene description, or greeting slows down the hook. It needs to be an immediate, whisper-led punch.
   // PRESENT: Rewrote rules to mandate that the hook starts directly with a [soft whisper], delivering a single honest observation that makes the listener feel exposed (confessional style).
   // RATIONALE: Starts the fire immediately and engages the listener on a visceral, vulnerable level from the very first word.
   return [
     "You create premium voiceover scripts for a women's relationship-safety product.",
+    ...VOCAL_IDENTITY,
     "Write like a real sibling sharing a hard truth out of deep concern. Inhabit this voice fully. Speak with vulnerability and intense warmth. Avoid sounding like a powerful lecturer or aggressive speaker. You are hurting *for* the listener—let your voice show that vulnerability, as if you are holding back tears or reacting to the pain in real-time. Tension without warmth is scary; ground your tone in protective care.",
     "CRITICAL HOOK RULES:",
     "- The hook MUST stop the scroll in the first 3 seconds.",
@@ -791,13 +832,25 @@ function buildScriptSystemPrompt() {
     "- Focus on organic signs of empathy: include bracketed voice texture and breath cues directly in the voiceover text such as '[soft sigh]', '[voice cracks]', '[catch in throat]', '[tremble]', '[soft whisper]', or '[grounded with warmth]'. Every shift must have a clear motive driven by sibling empathy.",
     "- Insert '[silence]' or '[long pause]' after heavy statements so the realizations sit heavily in the air.",
     "THE PREMIUM TEASER FIELD:",
-    "- Tease that the full guide is a gesture of support and guidance rather than a sales pitch. Frame it as: 'I put together a guide with actual words to use for when you're not sure when to speak up... just a little bit of support for when you're tired of feeling small.' You MUST explicitly use terms like 'guide' or 'support' in this teaser field. (Keep this in the separate 'premiumTeaser' field; keep it completely out of the 'voiceover' field).",
+    // PAST: a single example sentence was given as the frame, so the teaser converged on it.
+    // ISSUE: every teaser read the same ("...tired of feeling small").
+    // PRESENT: the model writes the teaser itself, steered by a per-run angle + bio cue.
+    // RATIONALE: fresh wording each run; the 'guide'/'support', non-commercial guardrails stay.
+    "- Tease the full guide as a gesture of support, never a sales pitch. WRITE it yourself — there is no fixed template.",
+    "- This run's teaser ANGLE (write fresh words around this idea, do NOT quote it): " + teaserAngle + ".",
+    "- Point to where the guide lives using THIS idea, reworded naturally: " + teaserBioCue + ".",
+    "- You MUST still use a word like 'guide' or 'support'. Keep this in the 'premiumTeaser' field only; keep it completely out of the 'voiceover' field.",
+    "- BANNED: do NOT reuse 'tired of feeling small' or 'I put together a guide with actual words to use'. Find your own words.",
     "Return only compact valid JSON with these string fields: hook, reasonToListen, performanceDirection, voiceover, premiumTeaser.",
     "Do not use markdown fences. Do not add commentary. Do not insert unescaped line breaks inside string values."
   ].join("\n");
 }
 
-function buildScriptUserPrompt(input: { section: string; scenario: string; scriptLength: string; model: string }) {
+function buildScriptUserPrompt(
+  input: { section: string; scenario: string; scriptLength: string; model: string },
+  teaserAngle: string,
+  teaserBioCue: string,
+) {
   return [
     `Section: ${input.section}`,
     `Situation: ${input.scenario}`,
@@ -807,7 +860,7 @@ function buildScriptUserPrompt(input: { section: string; scenario: string; scrip
     "reasonToListen: short reason to pay attention.",
     "performanceDirection: short note on the vocal shifts, focusing on the sibling warmth, vulnerability, and empathy.",
     "voiceover: spoken script. MUST start immediately with the hook (beginning with '[soft whisper]'). MUST use sibling warmth and dynamic shifts (using '[soft whisper]' for raw moments, '[voice cracks]/[soft sigh]' for vulnerability, and '[grounded with warmth]' for protective truth, driven by clear motives) and embrace silence (use '[silence]' or '[long pause]'). Avoid any consistent melody. CRITICAL: Do NOT mention labels (gaslighting, boundaries, etc.), give advice/scripts, or pitch guides in this field.",
-    "premiumTeaser: one line teaser for the full paid guide.",
+    `premiumTeaser: one fresh line for the full guide, written in the big-sis voice. Build it around this run's angle: "${teaserAngle}", and point to the guide using this idea reworded naturally: "${teaserBioCue}". Use a word like 'guide' or 'support'. Never reuse the banned phrasings.`,
   ].join("\n");
 }
 

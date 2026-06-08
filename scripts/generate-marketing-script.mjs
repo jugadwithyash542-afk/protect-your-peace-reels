@@ -29,8 +29,65 @@ if (fs.existsSync(dotenvPath)) {
 
 const API_BASE = process.env.FREELLM_API_BASE ?? "http://127.0.0.1:3001";
 
-const EBOOK_PATH = process.env.EBOOK_PATH ?? path.resolve(__dirname, '../Doc/guide.md');
+// PAST: default fell back to '../Doc/guide.md'.
+// ISSUE: that file was moved to Doc/past/, so any run without an explicit EBOOK_PATH
+//        (e.g. the Render /api/generate-reel endpoint, which does not pass it) failed
+//        with "Guide document not found".
+// PRESENT: default now points to the current canonical book, Doc/Final/final book.md.
+// RATIONALE: makes the server endpoint work with no extra env config; an explicit
+//            EBOOK_PATH env var still overrides this for local/experimental runs.
+const EBOOK_PATH = process.env.EBOOK_PATH ?? path.resolve(__dirname, '../Doc/Final/final book.md');
 const OUTPUT_DIR = path.resolve(__dirname, '../generated-audio');
+
+// ── Big-Sis voice + transition variety engine ──────────────────────────────
+// PAST: The transition into the guide was a single sentence the model was ordered
+//       to reproduce verbatim ("The transition MUST use this exact ... close wording").
+// ISSUE: Every reel ended with the identical "...tired of feeling small ... link in the
+//        profile bio" line, so the outro felt copy-pasted and the CTA went stale fast.
+// PRESENT: The exact-wording mandate is removed and replaced by two levers — (1) a fixed
+//          IDENTITY + VOCAL guideline block that locks the *character*, and (2) a rotation
+//          engine that injects a fresh transition ANGLE + a fresh BIO_CUE phrasing per run
+//          so the model writes the pitch itself, in different words every time.
+// RATIONALE: Locking the persona but randomising the raw material is what buys variety
+//            cheaply. These are static in-process arrays (a few hundred bytes) and add zero
+//            extra LLM calls, so the worker stays well inside the 96MB old-space cap it runs
+//            under on the Render free tier.
+
+// Identity + vocal guidelines. This fixes WHO is speaking and HOW, so variety in the
+// transition never drifts out of character.
+const VOCAL_IDENTITY = [
+  "IDENTITY & VOICE (hold this the entire script):",
+  "- You are a protective, empathetic older sister. Your single goal is to make the listener feel seen and safe.",
+  "- Speak in fragments. Use natural, uneven rhythm. Avoid clinical language and perfect grammar.",
+  "- Prioritise the emotional subtext over the clarity of the sentence — feeling matters more than information.",
+  "- Never sound like a structured outline, a lecture, or a sales pitch. Your voice is a confession, not a presentation.",
+  "- Lean into the silence. Let the emotion drive the pacing, not the structure.",
+];
+
+// Transition ANGLES: a *direction* for how big-sis pivots to the guide. The model writes
+// fresh words around the chosen angle each run — none of these are literal lines to quote.
+const PITCH_ANGLES = [
+  "a quiet confession that you couldn't stop thinking about her, so you wrote the words down",
+  "gently giving her permission to not have the words yet — that is exactly why you gathered them",
+  "sliding it across the table like a folded note, almost shy to even mention it",
+  "telling her you made this for your own past self, and you are just leaving it where she can find it",
+  "no pressure at all — only pointing to where the words live for the night she cannot find her own",
+  "a protective whisper, like tucking her in: the words will be waiting whenever she is ready",
+  "admitting you wish someone had handed YOU this back then, so now you are handing it to her",
+];
+
+// BIO_CUES: varied ways to indicate the guide's location. The model rewords the idea so the
+// CTA phrasing is never identical twice.
+const BIO_CUES = [
+  "it is in the bio if she ever needs it",
+  "the link is in the profile",
+  "it is sitting in the profile, no rush",
+  "the link is in the bio, for whenever",
+  "it is in the profile, only if she wants it",
+  "it is there in the bio, quietly waiting",
+];
+
+const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 // Meta headings to exclude from parsing
 const META_HEADINGS = new Set([
@@ -297,36 +354,72 @@ async function main() {
 function parseEbookSections(content) {
   const lines = content.split('\n');
   const sections = [];
-  let currentSection = null;
+  
+  let currentPartTitle = "";
+  let currentPartIntro = "";
+  
+  let currentSubTitle = "";
+  let currentSubContent = "";
 
   for (const line of lines) {
     if (line.startsWith('## ')) {
       const title = line.slice(3).trim();
       if (META_HEADINGS.has(title)) {
+        currentPartTitle = "";
+        currentPartIntro = "";
         continue;
       }
-
-      if (currentSection) {
-        sections.push(currentSection);
+      
+      // Save previous sub-section if exists
+      if (currentSubTitle && currentSubContent.trim().length > 50) {
+        sections.push({
+          title: `${currentPartTitle} - ${currentSubTitle}`,
+          content: `${currentPartIntro}\n\n### ${currentSubTitle}\n${currentSubContent.trim()}`
+        });
       }
-
-      currentSection = {
-        title,
-        content: ""
-      };
-    } else if (currentSection) {
-      currentSection.content += line + "\n";
+      
+      currentPartTitle = title;
+      currentPartIntro = "";
+      currentSubTitle = "";
+      currentSubContent = "";
+      
+    } else if (line.startsWith('### ')) {
+      if (!currentPartTitle) continue; // Skip if in meta sections
+      
+      // Save previous sub-section if exists
+      if (currentSubTitle && currentSubContent.trim().length > 50) {
+        sections.push({
+          title: `${currentPartTitle} - ${currentSubTitle}`,
+          content: `${currentPartIntro}\n\n### ${currentSubTitle}\n${currentSubContent.trim()}`
+        });
+      }
+      
+      currentSubTitle = line.slice(4).trim();
+      currentSubContent = "";
+      
+    } else {
+      // Append content
+      if (currentSubTitle) {
+        currentSubContent += line + "\n";
+      } else if (currentPartTitle) {
+        currentPartIntro += line + "\n";
+      }
     }
   }
 
-  if (currentSection) {
-    sections.push(currentSection);
+  // Push final section
+  if (currentPartTitle && currentSubTitle && currentSubContent.trim().length > 50) {
+    sections.push({
+      title: `${currentPartTitle} - ${currentSubTitle}`,
+      content: `${currentPartIntro}\n\n### ${currentSubTitle}\n${currentSubContent.trim()}`
+    });
   }
 
-  // Trim content and filter out empty sections
-  return sections
-    .map(s => ({ title: s.title, content: s.content.trim() }))
-    .filter(s => s.content.length > 50);
+  // Trim and filter out empty sections
+  return sections.map(s => ({
+    title: s.title,
+    content: s.content.trim()
+  })).filter(s => s.content.length > 50);
 }
 
 async function promptUserForSection(sections) {
@@ -363,8 +456,14 @@ function getRandomSection(sections) {
 }
 
 async function generateMarketingScript(apiKey, section) {
+  // Per-run variety seeds. Sampling here (not in the prompt text) is what makes every
+  // generation differ while the identity below stays constant.
+  const pitchAngle = pick(PITCH_ANGLES);
+  const bioCue = pick(BIO_CUES);
+
   const systemPrompt = [
     "You create supportive, raw, and nurturing reels/TikTok scripts for a women's relationship-safety and self-respect guide.",
+    ...VOCAL_IDENTITY,
     "Write like a real sibling sharing a hard truth out of deep concern. Inhabit this voice fully. Speak with vulnerability and intense warmth. Avoid sounding like a powerful lecturer or aggressive speaker. You are hurting *for* the listener—let your voice show that vulnerability, as if you are holding back tears or reacting to the pain in real-time. Tension without warmth is scary; ground your tone in protective care.",
     "CRITICAL CONTENT VARIATION RULES:",
     "- Do NOT summarize the entire section context. Instead, select ONE highly specific boundary scenario, a single concrete rule, a specific phrase, or a single script template from the text context, and build the entire reel script around that single concept.",
@@ -382,7 +481,15 @@ async function generateMarketingScript(apiKey, section) {
     "- Do NOT treat the guide/offer like a separate chapter, pitch, or sales transaction. Instead, make the transition a gentle, seamless gesture of support.",
     "- The goal is to make the listener feel deeply seen, validated, and supported first. Only then, transition into the guidance portion as an act of sibling help.",
     "- Do NOT mention pricing (no '$9.99', no 'launch price', no regular value), and do NOT use commercial/transactional terms like 'buy', 'purchase', 'limited-time offer', or 'checkout'.",
-    "- The transition MUST use this exact sentiment and close wording (grounded with warmth): '[grounded with warmth] I spent a lot of time thinking about how to actually stop this, so I put together a guide with the actual words to use for when you're not sure when to speak up. This is just a little bit of support for when you're tired of feeling small or lacking the words to say. If you need it, the link is in the profile bio.'",
+    // PAST: a single transition sentence was mandated verbatim here.
+    // ISSUE: it made every outro identical and stale.
+    // PRESENT: the model now WRITES the transition itself, steered by a per-run angle + bio cue.
+    // RATIONALE: fresh wording every run, while the non-commercial guardrails above stay intact.
+    "- WRITE the transition yourself, in the big-sis voice above. There is no fixed template.",
+    "- This run's transition ANGLE (write fresh words around this idea, do NOT quote it literally): " + pitchAngle + ".",
+    "- Point to the guide using THIS idea, reworded naturally so it never sounds scripted: " + bioCue + ".",
+    "- It must open with a '[grounded with warmth]' cue, mention a 'guide' offered as 'support', and feel hand-given.",
+    "- BANNED: do NOT output the sentence 'I spent a lot of time thinking about how to actually stop this', and do NOT reuse the phrasing 'tired of feeling small' or 'if you need it, the link is in the profile bio'. Find your own words.",
     "CRITICAL TONE RULES FOR THE VOICEOVER FIELD:",
     "- Start the voiceover field immediately with the hook.",
     "- BAN ALL DEFINITIONS & THERAPY LABELS: Never use terms like 'gaslighting', 'love bombing', 'narcissist', 'manipulation', 'red flags', or 'boundaries'. Speak only of the raw physical and mental sensation of the situation.",
@@ -402,9 +509,9 @@ async function generateMarketingScript(apiKey, section) {
     "title: dynamic short punchy title with a colon separating concept and subtitle representing this narrow script scenario.",
     "hook: scroll-stopping mind-reading hook line starting with '[soft whisper]', delivering a single raw, honest observation that makes the listener feel exposed (no greetings/scene setup).",
     "lesson: short value teaching lesson based directly on the book context, helping them recognize the situation.",
-    "pitch: supportive transition to the guide, explaining that I spent a lot of time thinking about how to actually stop this and put together a guide with actual words for when she's not sure when to speak up, offered purely as support for when she's tired of feeling small or lacking the words to say. No sales pitch, no pricing.",
+    `pitch: YOU write the supportive transition to the guide — do not copy a template. Build it around this run's angle: "${pitchAngle}", and point to the guide using this idea reworded naturally: "${bioCue}". Big-sis voice, offered purely as support. No sales pitch, no pricing. Never reuse the banned phrasings from the system rules.`,
     "performanceDirection: short note on the vocal shifts, focusing on the sibling warmth, vulnerability, and empathy.",
-    "voiceover: spoken script. MUST start immediately with the hook (beginning with '[soft whisper]'). Deliver the hook, then the value lesson, then transition seamlessly into the supportive transition (pitch). The transition at the end MUST continue the same sibling warmth, care, and protective tone. Do NOT break character or sound like a commercial. Use sibling warmth and dynamic shifts (using '[soft whisper]' for raw moments, '[voice cracks]/[soft sigh]' for vulnerability, and '[grounded with warmth]' for protective truth, driven by clear motives) and embrace silence (use '[silence]' or '[long pause]'). Avoid any consistent melody.",
+    "voiceover: spoken script. MUST start immediately with the hook (beginning with '[soft whisper]'). Deliver the hook, then the value lesson, then transition seamlessly into the supportive transition (the pitch you wrote). The transition at the end MUST continue the same sibling warmth, care, and protective tone, and must match the 'pitch' field in meaning. Do NOT break character or sound like a commercial. Use sibling warmth and dynamic shifts (using '[soft whisper]' for raw moments, '[voice cracks]/[soft sigh]' for vulnerability, and '[grounded with warmth]' for protective truth, driven by clear motives) and embrace silence (use '[silence]' or '[long pause]'). Avoid any consistent melody.",
   ].join("\n");
 
   const response = await fetch(`${API_BASE}/v1/chat/completions`, {
