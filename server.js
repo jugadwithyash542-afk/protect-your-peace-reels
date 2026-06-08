@@ -158,6 +158,59 @@ app.all('/api/generate-reel', (req, res) => {
   });
 });
 
+app.all('/api/test-step', (req, res) => {
+  const authHeader = req.headers.authorization;
+  const tokenFromHeader = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null;
+  const tokenFromQuery = req.query.apikey || req.query.apiKey;
+  const token = tokenFromHeader || tokenFromQuery;
+  const expectedToken = process.env.API_KEY || process.env.FREELLM_API_KEY;
+
+  if (!token || token !== expectedToken) {
+    return res.status(401).json({ success: false, error: 'Unauthorized.' });
+  }
+
+  const step = req.query.step || 'generate';
+  let cmd = '';
+  if (step === 'generate') {
+    cmd = `node scripts/generate-marketing-script.mjs "random"`;
+  } else if (step === 'render') {
+    cmd = `python3 scripts/render_captioned_video.py`;
+  } else if (step === 'upload') {
+    cmd = `python3 scripts/upload_pipeline.py`;
+  } else {
+    return res.status(400).send('Invalid step');
+  }
+
+  console.log(`[Render Server] Running test step: ${step}`);
+  const logPath = path.join(__dirname, 'generated-audio/pipeline.log');
+  fs.writeFileSync(logPath, `=== TEST STEP: ${step} STARTED ===\n\n`);
+
+  const [shell, args] = process.platform === 'win32' ? ['cmd.exe', ['/s', '/c', cmd]] : ['/bin/sh', ['-c', cmd]];
+  const child = spawn(shell, args, { cwd: __dirname });
+
+  let stdoutData = "";
+  let stderrData = "";
+
+  child.stdout.on('data', (data) => {
+    const text = data.toString();
+    process.stdout.write(text);
+    fs.appendFileSync(logPath, text);
+    stdoutData += text;
+  });
+
+  child.stderr.on('data', (data) => {
+    const text = data.toString();
+    process.stderr.write(text);
+    fs.appendFileSync(logPath, text);
+    stderrData += text;
+  });
+
+  child.on('close', (code) => {
+    fs.appendFileSync(logPath, `\n=== TEST STEP: ${step} FINISHED (exit code: ${code}) ===\n`);
+    return res.json({ success: code === 0, code, stdout: stdoutData, stderr: stderrData });
+  });
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Render Server] Listening on port ${PORT}`);
 });
