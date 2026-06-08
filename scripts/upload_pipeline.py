@@ -286,6 +286,26 @@ def post_to_instagram_reel(video_path, caption, public_video_url):
 
 
 # ----------------- FACEBOOK PAGE UPLOAD -----------------
+def get_facebook_page_token():
+    """
+    Exchanges the Facebook User Access Token for a Page Access Token.
+    """
+    if not FACEBOOK_ACCESS_TOKEN or not FACEBOOK_PAGE_ID or 'your_' in FACEBOOK_ACCESS_TOKEN or 'your_' in FACEBOOK_PAGE_ID:
+        return None
+    try:
+        url = f"https://graph.facebook.com/v21.0/{FACEBOOK_PAGE_ID}?fields=access_token&access_token={FACEBOOK_ACCESS_TOKEN}"
+        res = requests.get(url, timeout=30)
+        res_data = res.json()
+        if 'access_token' in res_data:
+            print("🔑 Exchanged Facebook User Token for Page Access Token.")
+            return res_data['access_token']
+        else:
+            print(f"⚠️ Facebook token exchange failed: {res_data.get('error', {}).get('message')}")
+    except Exception as e:
+        print(f"⚠️ Facebook token exchange error: {e}")
+    return FACEBOOK_ACCESS_TOKEN  # Fallback to User Token
+
+
 def post_to_facebook_page(video_path, caption):
     """
     Uploads a local video file directly to the Facebook Page using form-data (no public URL required).
@@ -298,13 +318,15 @@ def post_to_facebook_page(video_path, caption):
         print("⚠️ Facebook Access Token or Page ID is not configured (or is placeholder) in .env. Skipping post.")
         return None
 
+    page_token = get_facebook_page_token()
+
     print("🚀 Uploading video directly to Facebook Page...")
     try:
         url = f"https://graph-video.facebook.com/v19.0/{FACEBOOK_PAGE_ID}/videos"
         
         with open(video_path, 'rb') as video_file:
             payload = {
-                'access_token': FACEBOOK_ACCESS_TOKEN,
+                'access_token': page_token,
                 'description': caption,
             }
             files = {
