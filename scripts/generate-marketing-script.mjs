@@ -229,7 +229,7 @@ async function main() {
           ffmpegBin = 'ffmpeg';
         }
         try {
-          execSync(`"${ffmpegBin}" -y -i "${rawBgPath}" -ar 24000 -ac 1 "${convertedWavPath}"`);
+          execSync(`"${ffmpegBin}" -y -threads 1 -i "${rawBgPath}" -ar 24000 -ac 1 "${convertedWavPath}"`);
           console.log(`Successfully converted audio using ffmpeg: ${convertedWavPath}`);
         } catch (err) {
           console.error("Failed to convert background audio using ffmpeg:", err.message);
@@ -259,7 +259,7 @@ async function main() {
             ffmpegBin = 'ffmpeg';
           }
           try {
-            execSync(`"${ffmpegBin}" -y -i "${legacyM4aPath}" -ar 24000 -ac 1 "${legacyWavBgPath}"`);
+            execSync(`"${ffmpegBin}" -y -threads 1 -i "${legacyM4aPath}" -ar 24000 -ac 1 "${legacyWavBgPath}"`);
             console.log("Successfully converted legacy background audio.");
           } catch (err) {
             console.error("Failed to convert legacy audio using ffmpeg:", err.message);

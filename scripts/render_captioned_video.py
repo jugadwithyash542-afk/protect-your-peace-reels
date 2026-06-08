@@ -348,12 +348,9 @@ def render_video(video_path, audio_path, ass_path, output_path, duration):
     print(f"Successfully rendered video: {output_path}")
 
 def main():
-    video_file = os.path.join(workspace, "Animate_head_top_visual_effect_202606071706.mp4")
+    video_file = os.path.join(workspace, "yoyo_loop.mp4")
     audio_file = os.path.join(workspace, "generated-audio/mixed-voiceover-latest.wav")
     script_file = os.path.join(workspace, "generated-audio/marketing-script-latest.md")
-    
-    temp_reversed = os.path.join(workspace, "generated-audio/temp_reversed.mp4")
-    temp_yoyo = os.path.join(workspace, "generated-audio/temp_yoyo.mp4")
     
     if not os.path.exists(video_file) or not os.path.exists(audio_file):
         print("Missing required source video or audio assets.", file=sys.stderr)
@@ -366,9 +363,6 @@ def main():
     # Run the advanced alignment timing calculator (prevents caption drift)
     timed_segments = calculate_timings(phrases, duration)
     
-    # Generate the Yo-Yo loop video segment once
-    create_yoyo_loop_video(video_file, temp_reversed, temp_yoyo)
-    
     # Parse title dynamically from the markdown script (updates Part number on every run)
     title = parse_markdown_title(script_file)
     print(f"Dynamic Title parsed: {title.replace(chr(10), ' ')}")
@@ -379,18 +373,12 @@ def main():
     latest_video_path = os.path.join(workspace, "generated-audio/rendered_reel_latest.mp4")
     
     generate_ass_file(timed_segments, title, ass_path)
-    render_video(temp_yoyo, audio_file, ass_path, output_video_path, duration)
+    render_video(video_file, audio_file, ass_path, output_video_path, duration)
     
     # Also save as rendered_reel_latest.mp4 for convenience
     import shutil
     shutil.copyfile(output_video_path, latest_video_path)
     print(f"Saved shortcut copy to: {latest_video_path}")
-        
-    # Clean up temporary yoyo assets
-    if os.path.exists(temp_reversed):
-        os.remove(temp_reversed)
-    if os.path.exists(temp_yoyo):
-        os.remove(temp_yoyo)
         
     print("\nHormozi styled captioned reel generated successfully!")
 
