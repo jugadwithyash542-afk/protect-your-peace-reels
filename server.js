@@ -104,7 +104,6 @@ app.get('/api/debug-env', (req, res) => {
     'python3 --version',
     'which pip3',
     'pip3 --version',
-    'cat install.log || true',
     'ls -la generated-audio || true',
     'ls -la || true',
     'ls -la python_packages || true',
