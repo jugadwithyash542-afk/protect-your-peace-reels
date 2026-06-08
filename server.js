@@ -101,7 +101,10 @@ app.get('/api/debug-env', (req, res) => {
     'python3 --version',
     'which pip3',
     'pip3 --version',
-    'pip3 list'
+    'pip3 list',
+    'python3 -c "import site; print(site.getusersitepackages())"',
+    'python3 -c "import sys; print(sys.path)"',
+    'python3 -c "import requests; print(requests.__file__)"'
   ];
   let output = "";
   for (const cmd of commands) {
