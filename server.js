@@ -15,7 +15,7 @@ try {
 } catch (error) {
   console.log("[Python Deps] Missing python dependencies. Installing...");
   try {
-    execSync(`pip3 install requests google-api-python-client google-auth-httplib2 google-auth-oauthlib python-dotenv`, { stdio: 'inherit' });
+    execSync(`python3 -m pip install --user requests google-api-python-client google-auth-httplib2 google-auth-oauthlib python-dotenv`, { stdio: 'inherit' });
     console.log("[Python Deps] Successfully installed python dependencies!");
   } catch (installError) {
     console.error("[Python Deps] Failed to install python dependencies:", installError.message);
