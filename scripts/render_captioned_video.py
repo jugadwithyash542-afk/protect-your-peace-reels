@@ -21,6 +21,15 @@ if not os.path.exists(ffmpeg_bin):
     ffmpeg_bin = "ffmpeg"
 
 # Enforce minimal fontconfig configuration to avoid huge system scans and memory OOM on Render
+# PAST: the bundled font was fonts/Roboto-Bold.ttf and Arial was remapped to family "Roboto-Bold".
+# ISSUE: (1) that .ttf was actually a saved GitHub HTML page, not a font, so fontconfig loaded
+#        zero usable faces ("Failed to load fontconfig fonts!") and every caption glyph rendered
+#        as 0x0 (blank). (2) "Roboto-Bold" was never a real font *family* name anyway — the family
+#        would have been "Roboto" — so even a valid file would not have matched the remap.
+# PRESENT: bundle a valid Carlito Bold face (Arial-metric-compatible, SIL OFL) and remap Arial to
+#          its true family name, "Carlito".
+# RATIONALE: Carlito has the same metrics as Arial, so the Hormozi caption layout is unchanged,
+#            and remapping to the real family is what libass actually resolves against.
 fonts_conf_template = """<?xml version="1.0"?>
 <!DOCTYPE fontconfig SYSTEM "fonts.dtd">
 <fontconfig>
@@ -32,7 +41,7 @@ fonts_conf_template = """<?xml version="1.0"?>
       <string>Arial</string>
     </test>
     <edit name="family" mode="assign" binding="same">
-      <string>Roboto-Bold</string>
+      <string>Carlito</string>
     </edit>
   </match>
 </fontconfig>
@@ -277,15 +286,17 @@ def apply_hormozi_highlight(text):
     return " ".join(highlighted_words)
 
 def generate_ass_file(segments, title, output_ass_path):
-    # Arial Black, bold, uppercase, thick outline, aligned top-center just below title card
-    title_font = "Arial"
+    # Bold, uppercase, thick outline, aligned top-center just below title card.
+    # PRESENT: reference the bundled family "Carlito" directly (Arial-metric); the Arial->Carlito
+    # remap above remains as a safety net for any stray "Arial" reference.
+    title_font = "Carlito"
     title_size = "48"
     title_color = "&H00EDF9FF"   # Soft cream title
     title_outline = "3"
     title_shadow = "0"
     title_margin_v = "180"
     
-    caption_font = "Arial"
+    caption_font = "Carlito"     # Bundled Arial-metric face; see fonts_conf_template note above
     caption_size = "64"          # Slightly smaller than 76 to fit cleanly under title card
     caption_color = "&H00FFFFFF"  # White text
     caption_outline = "4"         # Thick black outline
