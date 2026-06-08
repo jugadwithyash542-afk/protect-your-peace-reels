@@ -7,6 +7,21 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Synchronously check and install Python dependencies on startup to prevent ModuleNotFoundError
+try {
+  console.log("[Python Deps] Checking if python dependencies are installed...");
+  execSync(`python3 -c "import requests, googleapiclient, dotenv"`);
+  console.log("[Python Deps] Python dependencies are already installed.");
+} catch (error) {
+  console.log("[Python Deps] Missing python dependencies. Installing...");
+  try {
+    execSync(`python3 -m pip install --user requests google-api-python-client google-auth-httplib2 google-auth-oauthlib python-dotenv`, { stdio: 'inherit' });
+    console.log("[Python Deps] Successfully installed python dependencies!");
+  } catch (installError) {
+    console.error("[Python Deps] Failed to install python dependencies:", installError.message);
+  }
+}
+
 // Environment variables loaded from .env automatically
 
 // Load environment variables from root .env manually
