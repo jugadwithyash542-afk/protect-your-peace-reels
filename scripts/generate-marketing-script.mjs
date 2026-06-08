@@ -505,13 +505,16 @@ async function generateMarketingScript(apiKey, section) {
     `Section Title: ${section.title}`,
     `Ebook Section Text Context:\n${section.content}`,
     "",
-    "Create EXACTLY ONE highly focused marketing script object based on the ebook content. Do NOT create multiple variants, lists, or a script pack.",
-    "title: dynamic short punchy title with a colon separating concept and subtitle representing this narrow script scenario.",
-    "hook: scroll-stopping mind-reading hook line starting with '[soft whisper]', delivering a single raw, honest observation that makes the listener feel exposed (no greetings/scene setup).",
-    "lesson: short value teaching lesson based directly on the book context, helping them recognize the situation.",
-    `pitch: YOU write the supportive transition to the guide — do not copy a template. Build it around this run's angle: "${pitchAngle}", and point to the guide using this idea reworded naturally: "${bioCue}". Big-sis voice, offered purely as support. No sales pitch, no pricing. Never reuse the banned phrasings from the system rules.`,
-    "performanceDirection: short note on the vocal shifts, focusing on the sibling warmth, vulnerability, and empathy.",
-    "voiceover: spoken script. MUST start immediately with the hook (beginning with '[soft whisper]'). Deliver the hook, then the value lesson, then transition seamlessly into the supportive transition (the pitch you wrote). The transition at the end MUST continue the same sibling warmth, care, and protective tone, and must match the 'pitch' field in meaning. Do NOT break character or sound like a commercial. Use sibling warmth and dynamic shifts (using '[soft whisper]' for raw moments, '[voice cracks]/[soft sigh]' for vulnerability, and '[grounded with warmth]' for protective truth, driven by clear motives) and embrace silence (use '[silence]' or '[long pause]'). Avoid any consistent melody.",
+    "Create EXACTLY ONE highly focused marketing script JSON object based on the ebook content. Do NOT create multiple variants, lists, or a script pack.",
+    "Ensure your JSON response contains exactly these fields:",
+    "{",
+    '  "title": "dynamic short punchy title with a colon separating concept and subtitle representing this narrow script scenario.",',
+    '  "hook": "scroll-stopping mind-reading hook line starting with \'[soft whisper]\', delivering a single raw, honest observation that makes the listener feel exposed (no greetings/scene setup).",',
+    '  "lesson": "short value teaching lesson based directly on the book context, helping them recognize the situation.",',
+    `  "pitch": "YOU write the supportive transition to the guide — do not copy a template. Build it around this run's angle: \\"${pitchAngle}\\", and point to the guide using this idea reworded naturally: \\"${bioCue}\\". Big-sis voice, offered purely as support. No sales pitch, no pricing. Never reuse the banned phrasings from the system rules.",`,
+    '  "performanceDirection": "short note on the vocal shifts, focusing on the sibling warmth, vulnerability, and empathy.",',
+    '  "voiceover": "spoken script. MUST start immediately with the hook (beginning with \'[soft whisper]\'). Deliver the hook, then the value lesson, then transition seamlessly into the supportive transition (the pitch you wrote). The transition at the end MUST continue the same sibling warmth, care, and protective tone, and must match the \'pitch\' field in meaning. Do NOT break character or sound like a commercial. Use sibling warmth and dynamic shifts (using \'[soft whisper]\' for raw moments, \'[voice cracks]/[soft sigh]\' for vulnerability, and \'[grounded with warmth]\' for protective truth, driven by clear motives) and embrace silence (use \'[silence]\' or \'[long pause]\'). Avoid any consistent melody."',
+    "}"
   ].join("\n");
 
   const response = await fetch(`${API_BASE}/v1/chat/completions`, {
@@ -619,14 +622,20 @@ function extractJsonSubstring(value) {
   let start = -1;
   let end = -1;
 
-  if (startArr !== -1 && (startObj === -1 || startArr < startObj)) {
+  if (startObj !== -1 && startArr !== -1 && startArr < startObj) {
+    // There is both [ and {, and [ comes first. This is likely an array.
     isArray = true;
     start = startArr;
     end = endArr;
-  } else {
+  } else if (startObj !== -1) {
+    // { is present (and [ is either not present or comes after {)
     isArray = false;
     start = startObj;
     end = endObj;
+  } else {
+    // { is not present. It cannot be a valid object or array of objects.
+    // Let's throw so the self-healing parser can try on the raw content.
+    throw new Error(`Could not find any JSON bounds in response.`);
   }
 
   if (start === -1 || end === -1 || end <= start) {
