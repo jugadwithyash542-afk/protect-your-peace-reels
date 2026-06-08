@@ -10,6 +10,9 @@ ffmpeg_bin = os.path.join(workspace, "node_modules/ffmpeg-static/ffmpeg")
 if not os.path.exists(ffmpeg_bin):
     ffmpeg_bin = "ffmpeg"
 
+# Enforce minimal fontconfig configuration to avoid huge system scans and memory OOM on Render
+os.environ["FONTCONFIG_FILE"] = os.path.join(workspace, "fonts.conf")
+
 def get_audio_duration(file_path):
     try:
         with wave.open(file_path, 'rb') as w:
@@ -328,7 +331,6 @@ def render_video(video_path, audio_path, ass_path, output_path, duration):
     cmd = [
         ffmpeg_bin,
         "-y",
-        "-threads", "1",
         "-stream_loop", "-1",          # Loop the input video infinitely
         "-i", video_path,              # Input yo-yo looped video
         "-i", audio_path,              # Input audio (mixed voiceover)
@@ -341,6 +343,7 @@ def render_video(video_path, audio_path, ass_path, output_path, duration):
         "-map", "0:v:0",               # Map video stream from video file
         "-map", "1:a:0",               # Map audio stream from audio file
         "-t", f"{duration:.2f}",       # Cap video length to match audio exactly
+        "-threads", "1",               # Enforce 1 thread globally (critical for encoder memory)
         output_path
     ]
     
