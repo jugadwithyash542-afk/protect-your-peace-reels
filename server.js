@@ -106,6 +106,7 @@ app.get('/api/debug-env', (req, res) => {
     'pip3 --version',
     'ls -la generated-audio || true',
     'ls -la || true',
+    'tail -n 100 generated-audio/pipeline.log || true',
     'ls -la python_packages || true',
     'python3 -c "import sys; sys.path.insert(0, \'./python_packages\'); import requests; print(requests.__file__)"'
   ];
