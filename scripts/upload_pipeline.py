@@ -2,6 +2,8 @@
 import os
 import re
 import sys
+import site
+site.addsitedir(site.getusersitepackages())
 import time
 import requests
 import json

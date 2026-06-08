@@ -2,6 +2,8 @@
 import os
 import re
 import sys
+import site
+site.addsitedir(site.getusersitepackages())
 import wave
 import subprocess
 
@@ -355,20 +357,22 @@ def render_video(video_path, audio_path, ass_path, output_path, duration):
     print(f"Rendering Hormozi styled video reel...")
     cmd = [
         ffmpeg_bin,
+        "-threads", "1",               # Enforce 1 thread globally (critical for decoder/filter/encoder memory)
         "-y",
         "-stream_loop", "-1",          # Loop the input video infinitely
         "-i", video_path,              # Input yo-yo looped video
         "-i", audio_path,              # Input audio (mixed voiceover)
         "-vf", f"subtitles={ass_path}",# Burn ASS subtitles
         "-c:v", "libx264",             # H.264 video codec
-        "-preset", "fast",             # Encoding speed preset
+        "-preset", "ultrafast",        # Memory-efficient encoding preset
+        "-tune", "zerolatency",        # Memory-efficient tuning
+        "-bf", "0",                    # Disable B-frames to save memory
         "-crf", "22",                  # Constant Rate Factor for good quality
         "-c:a", "aac",                 # AAC audio codec
         "-b:a", "192k",                # Audio bitrate
         "-map", "0:v:0",               # Map video stream from video file
         "-map", "1:a:0",               # Map audio stream from audio file
         "-t", f"{duration:.2f}",       # Cap video length to match audio exactly
-        "-threads", "1",               # Enforce 1 thread globally (critical for encoder memory)
         output_path
     ]
     

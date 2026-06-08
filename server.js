@@ -7,20 +7,7 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
-// Synchronously check and install Python dependencies on startup to prevent ModuleNotFoundError
-try {
-  console.log("[Python Deps] Checking if python dependencies are installed...");
-  execSync(`python3 -c "import requests, googleapiclient, dotenv"`);
-  console.log("[Python Deps] Python dependencies are already installed.");
-} catch (error) {
-  console.log("[Python Deps] Missing python dependencies. Installing...");
-  try {
-    execSync(`python3 -m pip install --user requests google-api-python-client google-auth-httplib2 google-auth-oauthlib python-dotenv`, { stdio: 'inherit' });
-    console.log("[Python Deps] Successfully installed python dependencies!");
-  } catch (installError) {
-    console.error("[Python Deps] Failed to install python dependencies:", installError.message);
-  }
-}
+// Environment variables loaded from .env automatically
 
 // Load environment variables from root .env manually
 const dotenvPath = path.resolve(__dirname, '.env');
@@ -137,7 +124,7 @@ app.all('/api/generate-reel', (req, res) => {
   fs.writeFileSync(logPath, `=== PIPELINE STARTED: ${timestamp} (query: ${query}) ===\n\n`);
 
   // Run the generator, renderer, and upload pipeline scripts in a memory-bounded shell
-  const cmd = `node scripts/generate-marketing-script.mjs "${query}" && python3 scripts/render_captioned_video.py && python3 scripts/upload_pipeline.py`;
+  const cmd = `node --max-old-space-size=128 scripts/generate-marketing-script.mjs "${query}" && python3 scripts/render_captioned_video.py && python3 scripts/upload_pipeline.py`;
   
   const [shell, args] = process.platform === 'win32' ? ['cmd.exe', ['/s', '/c', cmd]] : ['/bin/sh', ['-c', cmd]];
   const child = spawn(shell, args, { cwd: __dirname });
@@ -214,7 +201,7 @@ app.all('/api/test-step', (req, res) => {
   const step = req.query.step || 'generate';
   let cmd = '';
   if (step === 'generate') {
-    cmd = `node scripts/generate-marketing-script.mjs "random"`;
+    cmd = `node --max-old-space-size=128 scripts/generate-marketing-script.mjs "random"`;
   } else if (step === 'render') {
     cmd = `python3 scripts/render_captioned_video.py`;
   } else if (step === 'upload') {
