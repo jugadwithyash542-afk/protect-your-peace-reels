@@ -39,6 +39,39 @@ app.use('/generated-audio', express.static(path.join(__dirname, 'generated-audio
 // Serve index.html and other static landing page files
 app.use(express.static(path.join(__dirname, 'landing-page')));
 
+// Ensure generated-audio directory exists on boot
+const genAudioDir = path.join(__dirname, 'generated-audio');
+if (!fs.existsSync(genAudioDir)) {
+  fs.mkdirSync(genAudioDir, { recursive: true });
+}
+
+// Diagnostic API endpoints (allow unauthenticated GET for pipeline monitoring)
+app.get('/api/pipeline-log', (req, res) => {
+  const logPath = path.join(__dirname, 'generated-audio/pipeline.log');
+  if (fs.existsSync(logPath)) {
+    res.setHeader('Content-Type', 'text/plain');
+    return res.sendFile(logPath);
+  } else {
+    return res.status(404).send('No pipeline log found.');
+  }
+});
+
+app.get('/api/list-files', (req, res) => {
+  const dirPath = path.join(__dirname, 'generated-audio');
+  if (!fs.existsSync(dirPath)) {
+    return res.json({ exists: false, files: [] });
+  }
+  const files = fs.readdirSync(dirPath).map(file => {
+    const stats = fs.statSync(path.join(dirPath, file));
+    return {
+      name: file,
+      size: stats.size,
+      mtime: stats.mtime
+    };
+  });
+  return res.json({ exists: true, files });
+});
+
 // API endpoint to generate and render the reel (supports both GET and POST)
 app.all('/api/generate-reel', (req, res) => {
   // Support both headers (Bearer) and query parameters (apikey)
@@ -57,6 +90,10 @@ app.all('/api/generate-reel', (req, res) => {
   const query = req.query.query || req.body.query || 'random';
   console.log(`[Render Server] Generating reel with query: ${query}`);
 
+  const logPath = path.join(__dirname, 'generated-audio/pipeline.log');
+  const timestamp = new Date().toISOString();
+  fs.writeFileSync(logPath, `=== PIPELINE STARTED: ${timestamp} (query: ${query}) ===\n\n`);
+
   // Run the generator, renderer, and upload pipeline scripts in a memory-bounded shell
   const cmd = `node scripts/generate-marketing-script.mjs "${query}" && python3 scripts/render_captioned_video.py && python3 scripts/upload_pipeline.py`;
   
@@ -69,6 +106,7 @@ app.all('/api/generate-reel', (req, res) => {
   child.stdout.on('data', (data) => {
     const text = data.toString();
     process.stdout.write(text); // Pipe logs directly to Render console stream
+    fs.appendFileSync(logPath, text); // Save log to disk
     stdoutData += text;
     if (stdoutData.length > 50000) {
       stdoutData = stdoutData.slice(-50000); // Limit buffer memory footprint to 50KB
@@ -78,6 +116,7 @@ app.all('/api/generate-reel', (req, res) => {
   child.stderr.on('data', (data) => {
     const text = data.toString();
     process.stderr.write(text); // Pipe error logs directly to Render console stream
+    fs.appendFileSync(logPath, text); // Save log to disk
     stderrData += text;
     if (stderrData.length > 50000) {
       stderrData = stderrData.slice(-50000); // Limit buffer memory footprint to 50KB
@@ -85,6 +124,9 @@ app.all('/api/generate-reel', (req, res) => {
   });
 
   child.on('close', (code) => {
+    const closeTime = new Date().toISOString();
+    fs.appendFileSync(logPath, `\n=== PIPELINE FINISHED: ${closeTime} (exit code: ${code}) ===\n`);
+
     if (code !== 0) {
       console.error(`[Render Server] Command execution failed with exit code: ${code}`);
       return res.status(500).json({
