@@ -86,6 +86,34 @@ def parse_markdown_title(md_path):
         print(f"Error parsing title: {e}", file=sys.stderr)
     return "PROTECT YOUR PEACE"
 
+# PRESENT: how long the full hook is flashed on screen at the very start.
+# RATIONALE: the word-by-word reveal made the scroll-stopper unreadable in second 1, feeding the
+#            80%+ skip rate. Showing the WHOLE hook instantly (even muted) lets the eye grab it at once.
+# STRATEGY LEVER: a /t/:id A-B preset can tune the flash duration via STRAT_HOOK_CARD_SECS
+#                 (e.g. 1.5 = snappier, 3.0 = longer hold). Defaults to 2.0 so un-parameterised
+#                 runs are unchanged.
+try:
+    HOOK_CARD_SECONDS = max(0.0, float(os.environ.get("STRAT_HOOK_CARD_SECS", "2.0")))
+except (TypeError, ValueError):
+    HOOK_CARD_SECONDS = 2.0
+
+
+def parse_markdown_hook(md_path):
+    """Extract the full hook line (minus [cues]/quotes) for the frame-1 hook card."""
+    try:
+        with open(md_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        match = re.search(r'## Hook[^\n]*\n(.*?)(?=\n##|\Z)', content, re.DOTALL)
+        if not match:
+            return ""
+        hook = re.sub(r'\[[^\]]*\]', '', match.group(1))      # drop bracketed audio cues
+        hook = hook.strip().strip('\'"“”‘’').strip()
+        return re.sub(r'\s+', ' ', hook)
+    except Exception as e:
+        print(f"Error parsing hook: {e}", file=sys.stderr)
+        return ""
+
+
 def parse_markdown_script(md_path):
     if not os.path.exists(md_path):
         print(f"Markdown script not found at {md_path}", file=sys.stderr)
@@ -285,7 +313,7 @@ def apply_hormozi_highlight(text):
             highlighted_words.append(w)
     return " ".join(highlighted_words)
 
-def generate_ass_file(segments, title, output_ass_path):
+def generate_ass_file(segments, title, output_ass_path, hook=""):
     # Bold, uppercase, thick outline, aligned top-center just below title card.
     # PRESENT: reference the bundled family "Carlito" directly (Arial-metric); the Arial->Carlito
     # remap above remains as a safety net for any stray "Arial" reference.
@@ -317,6 +345,7 @@ ScaledBorderAndShadow: yes
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: TitleCard,{title_font},{title_size},{title_color},&H00000000,&H80000000,&H00000000,1,0,0,0,100,100,0,0,1,{title_outline},{title_shadow},8,60,60,{title_margin_v},1
 Style: ActiveCaptions,{caption_font},{caption_size},{caption_color},&H0000FFFF,&H00000000,{caption_back_color},1,{caption_italic},0,0,100,100,1,0,{caption_border_style},{caption_outline},{caption_shadow},{caption_alignment},80,80,{caption_margin_v},1
+Style: HookCard,Carlito,72,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,1,0,0,0,100,100,0,0,3,4,0,5,90,90,0,1
 
 [Events]
 Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
@@ -329,15 +358,29 @@ Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
     events_section.append(
         f"Dialogue: 0,0:00:00.00,{end_time_str},TitleCard,,0,0,0,,{title_escaped}"
     )
-    
+
+    # PRESENT: flash the FULL hook, centered, for the first HOOK_CARD_SECONDS with a soft fade.
+    # The word-by-word captions in that same window are suppressed below to avoid double text,
+    # so during the open the viewer reads one bold, complete scroll-stopper instead of assembling
+    # it word by word. RATIONALE: instant readability in second 1 is the core skip-rate fix.
+    if hook:
+        hook_card_end = format_time_ass(HOOK_CARD_SECONDS)
+        hook_escaped = hook.replace("\n", "\\N")
+        events_section.append(
+            f"Dialogue: 2,0:00:00.00,{hook_card_end},HookCard,,0,0,0,,{{\\fad(150,250)}}{hook_escaped}"
+        )
+
     for seg in segments:
+        # While the hook card is up, hide the word-by-word captions it would collide with.
+        if hook and seg['start'] < HOOK_CARD_SECONDS:
+            continue
         start_str = format_time_ass(seg['start'])
         end_str = format_time_ass(seg['end'])
         text = seg['text']
-        
+
         # Apply Hormozi styled highlighting
         text = apply_hormozi_highlight(text)
-            
+
         events_section.append(
             f"Dialogue: 1,{start_str},{end_str},ActiveCaptions,,0,0,0,,{text}"
         )
@@ -470,13 +513,17 @@ def main():
     # Parse title dynamically from the markdown script (updates Part number on every run)
     title = parse_markdown_title(script_file)
     print(f"Dynamic Title parsed: {title.replace(chr(10), ' ')}")
+
+    # Full hook for the frame-1 hook card (instant-readable scroll-stopper).
+    hook = parse_markdown_hook(script_file)
+    print(f"Hook card parsed: {hook[:80]}")
     
     # Generate only the HORMOZI style video
     ass_path = os.path.join(workspace, "generated-audio/captions_hormozi.ass")
     output_video_path = os.path.join(workspace, "generated-audio/rendered_reel_hormozi.mp4")
     latest_video_path = os.path.join(workspace, "generated-audio/rendered_reel_latest.mp4")
     
-    generate_ass_file(timed_segments, title, ass_path)
+    generate_ass_file(timed_segments, title, ass_path, hook=hook)
     render_video(video_file, audio_file, ass_path, output_video_path, duration)
     
     # Also save as rendered_reel_latest.mp4 for convenience

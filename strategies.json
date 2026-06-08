@@ -1,0 +1,53 @@
+{
+  "_comment": "A/B hypothesis presets for /t/:id. Each entry bundles the levers that flow into the generator (STRAT_HOOK_ANGLE/OPEN_STYLE/MAX_WORDS) and renderer (STRAT_HOOK_CARD_SECS). 'section' is the ebook query ('random' or a partial title). Add/edit freely — the server reads this file per request, no restart needed.",
+
+  "t1": {
+    "label": "Control — current baseline",
+    "hypothesis": "The tuned baseline (grounded open, curiosity loop, ~90 words, 2s hook card) is the reference everything else is measured against.",
+    "section": "random",
+    "hookAngle": "",
+    "openStyle": "grounded",
+    "maxWords": 90,
+    "hookCardSecs": 2.0
+  },
+
+  "t2": {
+    "label": "Ultra-short punch",
+    "hypothesis": "Cutting runtime hard (~55 words) lifts completion rate and therefore reach, even if absolute watch time per view drops.",
+    "section": "random",
+    "hookAngle": "",
+    "openStyle": "grounded",
+    "maxWords": 55,
+    "hookCardSecs": 1.5
+  },
+
+  "t3": {
+    "label": "Boundary-guilt locked",
+    "hypothesis": "Forcing the proven boundary->apology angle every time beats random angle selection on skip rate and saves.",
+    "section": "random",
+    "hookAngle": "the second right after she set a boundary — when the apology came tumbling out unprompted",
+    "openStyle": "grounded",
+    "maxWords": 75,
+    "hookCardSecs": 2.0
+  },
+
+  "t4": {
+    "label": "Whisper throwback (old style)",
+    "hypothesis": "The original intimate whisper-open does NOT actually hurt retention versus the grounded open — control test to confirm the change was worth it.",
+    "section": "random",
+    "hookAngle": "",
+    "openStyle": "whisper",
+    "maxWords": 90,
+    "hookCardSecs": 2.5
+  },
+
+  "t5": {
+    "label": "Long hook hold",
+    "hypothesis": "Holding the full hook on screen longer (3s) gives slower readers time to absorb it and lowers the 3-second skip.",
+    "section": "random",
+    "hookAngle": "the over-explaining spiral: she answered 'no' and then kept justifying it nobody asked",
+    "openStyle": "grounded",
+    "maxWords": 70,
+    "hookCardSecs": 3.0
+  }
+}

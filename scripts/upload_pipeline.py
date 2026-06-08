@@ -16,6 +16,8 @@ import time
 import requests
 import json
 import random
+import csv
+from datetime import datetime
 from pathlib import Path
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -790,6 +792,12 @@ def main():
     facebook_id = post_to_facebook_page(VIDEO_PATH, caption_link)
     threads_id = post_to_threads_profile(VIDEO_PATH, caption_link, public_video_url)
 
+    # PRESENT: attribute this post to its A-B strategy so performance can be compared later.
+    # RATIONALE: without a strategy_id -> media_id map, fetch_reels.py can't tell which hypothesis
+    #            (t1..tN) produced which engagement numbers. STRAT_ID is injected by the /t/:id route;
+    #            a manual run leaves it blank ('manual'), which is fine.
+    log_strategy_result(instagram_id, SCRIPT_PATH)
+
     print("\n" + "=" * 60)
     print("🏁 PIPELINE COMPLETED")
     print("-" * 60)
@@ -798,6 +806,29 @@ def main():
     print(f"Facebook Page: {f'Published (ID: {facebook_id})' if facebook_id else 'Skipped/Failed'}")
     print(f"Threads:       {f'Published (ID: {threads_id})' if threads_id else 'Skipped/Failed'}")
     print("=" * 60)
+
+
+def log_strategy_result(instagram_id, md_path):
+    """Append one row mapping the A-B strategy to the published Instagram media id."""
+    try:
+        strategy_id = os.getenv("STRAT_ID", "").strip() or "manual"
+        hook = ""
+        if md_path and os.path.exists(md_path):
+            with open(md_path, "r", encoding="utf-8") as f:
+                m = re.search(r"## Hook[^\n]*\n(.*?)(?=\n##|\Z)", f.read(), re.DOTALL)
+                if m:
+                    hook = re.sub(r"\[[^\]]*\]", "", m.group(1)).strip().strip("'\"“”‘’")[:120]
+        log_path = os.path.join(os.path.dirname(md_path) if md_path else ".", "strategy_log.csv")
+        new_file = not os.path.exists(log_path)
+        with open(log_path, "a", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            if new_file:
+                writer.writerow(["timestamp", "strategy_id", "instagram_media_id", "hook"])
+            writer.writerow([datetime.now().isoformat(timespec="seconds"), strategy_id,
+                             instagram_id or "", hook])
+        print(f"📊 Strategy logged: {strategy_id} -> {instagram_id or 'no-id'}")
+    except Exception as e:
+        print(f"⚠️ Strategy logging skipped: {e}")
 
 
 if __name__ == '__main__':

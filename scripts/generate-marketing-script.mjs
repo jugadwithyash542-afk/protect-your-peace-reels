@@ -101,6 +101,24 @@ const CLOSING_QUESTION_ANGLES = [
   "wonder aloud whether someone else needed to hear this too, and ask if that someone is her",
 ];
 
+// GRATITUDE BEATS: a short emotional moment placed at ~80% of the reel — AFTER the lesson,
+// BEFORE any mention of the guide — that earns a like/comment through solidarity, never bait.
+// PAST: there was no engagement beat; the reel went lesson -> guide transition -> closing.
+// ISSUE: the last 7 reels got 0 comments and almost no likes/saves; nothing ever gave the
+//        viewer a reason to react before the soft pitch, so the emotional peak passed unspent.
+// PRESENT: a per-run seed that frames the like/comment as her quietly saying "me too" so the
+//          next sister finds the reel — gratitude/connection framing, in the big-sis voice.
+// RATIONALE: likes + comments are weighted for distribution; capturing them at the emotional
+//            high point (before the guide) lifts reach without sounding like "smash that like".
+const GRATITUDE_BEATS = [
+  "tell her softly that if this reached her, a like is just her way of saying 'me too' — so the next sister lying awake with this feeling finds it",
+  "let her know her quiet tap of a like is what carries these words to another woman who needs them tonight",
+  "ask her, gently, to leave one word below if this found her — not for you, but so she's counted among the ones who feel it too",
+  "tell her a like here isn't for any algorithm; it's her hand raised in the dark saying 'I needed this', and you feel it from your side",
+  "invite her to drop a single heart in the comments for the version of her that could never say this out loud",
+  "say that when she likes this, she's keeping it alive for the sister who hasn't found the words yet — that's the only reason you ask",
+];
+
 // HOOK ANGLES: the *territory* the scroll-stopping first line should mine.
 // PAST: the hook rule only said "deliver a raw mind-reading observation" with no angle steer,
 //       so hooks ranged across every theme (chores/mental-load, body-anxiety, boundaries...).
@@ -226,6 +244,9 @@ async function main() {
     "",
     "## Core Value Point",
     scriptData.lesson,
+    "",
+    "## Gratitude Beat (Soft Like/Comment Invitation — ~80%, before the guide)",
+    scriptData.gratitudeBeat || "",
     "",
     "## Sisterly Support & Transition",
     scriptData.pitch,
@@ -504,7 +525,24 @@ async function generateMarketingScript(apiKey, section) {
   const bioCue = pick(BIO_CUES);
   const closingAngle = pick(CLOSING_QUESTION_ANGLES);
   // Per-run hook territory, weighted toward the proven low-skip boundary->guilt angle.
-  const hookAngle = pick(HOOK_ANGLES);
+  // STRATEGY OVERRIDE: a /t/:id A-B preset can pin the angle via STRAT_HOOK_ANGLE; else random.
+  const hookAngle = (process.env.STRAT_HOOK_ANGLE && process.env.STRAT_HOOK_ANGLE.trim())
+    ? process.env.STRAT_HOOK_ANGLE.trim()
+    : pick(HOOK_ANGLES);
+  // Per-run emotional like/comment beat, spoken at ~80% (before the guide transition).
+  const gratitudeBeat = pick(GRATITUDE_BEATS);
+
+  // STRATEGY LEVERS (env-driven; defaults reproduce the proven baseline, so an un-parameterised
+  // run behaves exactly as before — zero regression).
+  // - STRAT_OPEN_STYLE: 'grounded' (audible, low-skip default) | 'whisper' (intimate throwback test)
+  // - STRAT_MAX_WORDS:  upper word budget for the whole voiceover (the runtime / completion lever)
+  const openStyle = (process.env.STRAT_OPEN_STYLE || 'grounded').toLowerCase();
+  const maxWords = Math.max(40, parseInt(process.env.STRAT_MAX_WORDS || '90', 10) || 90);
+  const minWords = Math.max(30, maxWords - 30);
+  const openCue = openStyle === 'whisper' ? '[soft whisper]' : '[grounded with warmth]';
+  const openRule = openStyle === 'whisper'
+    ? `- The hook opens on a '${openCue}' cue — intimate and raw — but it must still be a sharp, COMPLETE scroll-stopper in the first second, never a slow fade. No '[long pause]'/'[silence]' before the words.`
+    : `- The hook MUST land with PRESENCE. Open it with a '${openCue}' cue — clear, direct, immediately audible. NEVER open on '[soft whisper]', '[long pause]', or '[silence]'; a low-energy or silent first second is the #1 reason viewers skip. Reserve whisper texture for the vulnerable middle.`;
 
   const systemPrompt = [
     "You create supportive, raw, and nurturing reels/TikTok scripts for a women's relationship-safety and self-respect guide.",
@@ -513,6 +551,15 @@ async function generateMarketingScript(apiKey, section) {
     "CRITICAL CONTENT VARIATION RULES:",
     "- Do NOT summarize the entire section context. Instead, select ONE highly specific boundary scenario, a single concrete rule, a specific phrase, or a single script template from the text context, and build the entire reel script around that single concept.",
     "- Focus the entire hook, lesson, and voiceover around that single narrow concept to ensure high variety across runs.",
+    // PRESENT: hard length + loop constraints aimed squarely at completion rate.
+    // ISSUE: only ~2-5% of viewers finished the reel, so the pitch and closing played to almost no one.
+    // RATIONALE: shorter reels finish far higher, and a loopable ending feeds replays/watch-time —
+    //            both lift the completion signal Instagram weights for reach.
+    "CRITICAL LENGTH & COMPLETION RULES:",
+    `- The ENTIRE spoken voiceover MUST be tight: aim for ${minWords}-${maxWords} spoken words total. Cut every word that is not load-bearing. Density beats length.`,
+    "- Front-load the payoff. The core realization of the lesson must arrive FAST, not be saved for the end — most viewers leave before the midpoint, so the value cannot live only in the back half.",
+    "- Make the ending LOOPABLE: the final closing question should emotionally rhyme with the hook, so when the reel auto-replays, the last line flows back into the first. Seamless loops multiply watch time.",
+    "- Keep the guide transition (pitch) to ONE breath — a single short sentence. It is seen by few; do not let it bloat the runtime and cost you completion.",
     "CRITICAL TITLE RULES:",
     "- The title field MUST be a short, punchy title (3-6 words, no emojis) specifically representing this script's sub-topic.",
     "- Use a colon to separate the core concept from the subtitle (e.g., 'THE APOLOGY REFLEX: Stop Saying Sorry' or 'THE SCHEDULE STALL: Protect Your Time' or 'THE RESENTMENT CARD: Stop Over-giving'). Do NOT use the Part title or Part number.",
@@ -524,7 +571,20 @@ async function generateMarketingScript(apiKey, section) {
     // RATIONALE: the boundary->guilt angle had the lowest skip rate and the only saves/shares in the last batch.
     "- MINE THIS TERRITORY for the hook (write a fresh line around it, do NOT quote it): " + hookAngle + ".",
     "- The hook MUST name the precise micro-moment AFTER she acts (the apology, the over-explaining, the replay) — that specific aftermath is what stops the scroll, not a general feeling.",
-    "- The hook MUST start with a whisper cue: '[soft whisper]'. E.g., '[soft whisper] You said no, then apologised five seconds later.' or '[soft whisper] You explained your whole reasoning to someone who never asked.'",
+    // PAST: the hook was forced to open on '[soft whisper]'.
+    // ISSUE: a whispered/low-energy first second drove the 80%+ skip rate (fatal at second 0).
+    // PRESENT: the open cue is strategy-driven (grounded by default, whisper only for A-B tests).
+    // RATIONALE: an audible, confident first line lands the scroll-stopper instantly; texture comes later.
+    openRule,
+    // CURIOSITY LOOP: the single biggest retention lever — give her a question she must stay to resolve.
+    `- The hook MUST OPEN A LOOP: state the exact aftermath moment AND plant one unanswered question she needs resolved. E.g. '${openCue} You said no — then apologised five seconds later. And you still can't figure out why.'`,
+    "- Do NOT resolve that loop in the hook. The lesson resolves it. The unanswered 'why' is what carries her past the 3-second wall.",
+    "CRITICAL GRATITUDE BEAT RULES (spoken at ~80%, AFTER the lesson, BEFORE any mention of the guide):",
+    "- After the lesson lands and before you ever point to the guide, insert ONE short, heart-touching beat that gently invites a like or comment.",
+    "- Frame it as solidarity, NOT promotion: liking/commenting is her quiet way of saying 'me too' so another woman finds this. Never say 'smash like', 'hit the like button', 'comment below for the algorithm', or anything that sounds like an influencer CTA.",
+    "- Write it FRESH around this run's gratitude ANGLE (do NOT quote it literally): " + gratitudeBeat + ".",
+    "- Keep it 1-2 sentences, in the same vulnerable big-sis voice. Lead it with a '[grounded with warmth]' or '[soft whisper]' cue. It must feel like gratitude and connection, never like a transaction.",
+    "- This beat comes BEFORE the guide transition. Do not blend it with the pitch.",
     "CRITICAL SUPPORT TRANSITION AND GUIDE REVELATION RULES:",
     "- Avoid a hard sales pitch. Keep the tone deeply nurturing, protecting, and completely non-commercial.",
     "- Do NOT treat the guide/offer like a separate chapter, pitch, or sales transaction. Instead, make the transition a gentle, seamless gesture of support.",
@@ -550,7 +610,10 @@ async function generateMarketingScript(apiKey, section) {
     "- BAN ADVICE & SCRIPTS inside the body of the voiceover: Do not give general advice, tell the listener what to say inside the teaching body; focus on the realization of their situation. Save the script recommendations for the transition/outro at the very end.",
     "EMBRACE SILENCE, WARMTH & EMPATHY:",
     "- Focus on organic signs of empathy: include bracketed voice texture and breath cues directly in the voiceover text such as '[soft sigh]', '[voice cracks]', '[catch in throat]', '[tremble]', '[soft whisper]', or '[grounded with warmth]'. Every shift must have a clear motive driven by sibling empathy.",
-    "- Insert '[silence]' or '[long pause]' after heavy statements so the realizations sit heavily in the air.",
+    // PRESENT: pauses are an emotional tool for the BACK half, banned from the open.
+    // RATIONALE: with only ~2-5% finishing, every dead second in the first half bleeds viewers;
+    //            silence earns its weight only once she is already invested.
+    "- Insert '[silence]' or '[long pause]' AFTER heavy statements to let realizations land — but NEVER in the first 3 seconds and never before the lesson has hooked her. The opening must move; stillness comes once she is in.",
     "HASHTAG RULES (derive these from THIS script's actual content):",
     "- Provide 8-12 Instagram hashtags in the 'hashtags' field as ONE space-separated string, each starting with '#', no spaces inside a tag (e.g. '#EmotionalLabor').",
     "- Base them on the specific scenario, feeling, and theme of THIS script — not generic filler. Mix a few broad discovery tags with several specific ones tied to this exact situation.",
@@ -558,7 +621,7 @@ async function generateMarketingScript(apiKey, section) {
     "- TARGET A FEMALE AUDIENCE HARD: prefer tags that live in women's communities (e.g. #WomenSupportingWomen #GirlTalk #SoftGirlEra #HealingGirlEra #SelfWorth #FeminineEnergy #Sisterhood #ThatGirl) alongside the topic-specific ones. The aim is for Instagram to surface this to women's feeds.",
     "- AVOID gender-neutral / male-skewing tags (e.g. #motivation, #mindset, #success, #hustle, #selfimprovement, #discipline) — they push the reel into mixed or male feeds.",
     "- No emojis inside tags, no duplicates, no banned-phrasing sentences.",
-    "Return only compact valid JSON representing EXACTLY ONE script object, with keys IN THIS ORDER: title, hook, lesson, pitch, closingQuestion, voiceover, hashtags, performanceDirection. Do NOT wrap it in a list or array. Do NOT output multiple script variants.",
+    "Return only compact valid JSON representing EXACTLY ONE script object, with keys IN THIS ORDER: title, hook, lesson, gratitudeBeat, pitch, closingQuestion, voiceover, hashtags, performanceDirection. Do NOT wrap it in a list or array. Do NOT output multiple script variants.",
     "Do not use markdown fences. Do not add commentary. Do not insert unescaped line breaks inside string values. Double quotes inside string values must be escaped as \\\"."
   ].join("\n");
 
@@ -570,11 +633,12 @@ async function generateMarketingScript(apiKey, section) {
     "Ensure your JSON response contains exactly these fields:",
     "{",
     '  "title": "dynamic short punchy title with a colon separating concept and subtitle representing this narrow script scenario.",',
-    `  "hook": "scroll-stopping mind-reading hook line starting with '[soft whisper]', built around this run's territory: \\"${hookAngle}\\". Name the precise micro-moment AFTER she acts (the apology, the over-explaining, the replay). One raw, exposing observation. No greetings/scene setup.",`,
+    `  "hook": "scroll-stopping hook line that OPENS WITH PRESENCE — start it with '${openCue}', a sharp COMPLETE scroll-stopper (never a slow fade or '[long pause]'/'[silence]' before the words). Built around this run's territory: \\"${hookAngle}\\". Name the precise micro-moment AFTER she acts (apology, over-explaining, replay) AND plant one unanswered question she must stay to resolve. One raw, exposing observation. No greetings/scene setup.",`,
     '  "lesson": "short value teaching lesson based directly on the book context, helping them recognize the situation.",',
+    `  "gratitudeBeat": "ONE short heart-touching beat (spoken at ~80%, AFTER the lesson, BEFORE the guide) that gently invites a like/comment as solidarity — her quiet 'me too' so another woman finds this. Build it around: \\"${gratitudeBeat}\\". Big-sis voice, lead with a '[grounded with warmth]' or '[soft whisper]' cue. Never sound like an influencer CTA.",`,
     `  "pitch": "YOU write the supportive transition to the guide — do not copy a template. Build it around this run's angle: \\"${pitchAngle}\\", and point to the guide using this idea reworded naturally: \\"${bioCue}\\". Big-sis voice, offered purely as support. No sales pitch, no pricing. Never reuse the banned phrasings from the system rules.",`,
     `  "closingQuestion": "ONE soft, open-ended question that ENDS the reel. Validate her experience first, then ask if she has felt this too — a safe-space conversation opener (spirit of 'have you ever felt this way?'). Build it around: \\"${closingAngle}\\". Warm, short, no yes/no trap, no advice, no selling. This is the final beat.",`,
-    '  "voiceover": "spoken script. MUST start immediately with the hook (beginning with \'[soft whisper]\'). Deliver the hook, then the value lesson, then the supportive transition (the pitch you wrote), and FINALLY end on the closing question (the closingQuestion you wrote), preceded by a \'[long pause]\'. The reel MUST end on that soft validating question — nothing after it. Keep the same sibling warmth throughout; the transition and closing must match the \'pitch\' and \'closingQuestion\' fields in meaning. Do NOT break character or sound like a commercial. Use dynamic shifts (using \'[soft whisper]\' for raw moments, \'[voice cracks]/[soft sigh]\' for vulnerability, and \'[grounded with warmth]\' for protective truth) and embrace silence (use \'[silence]\' or \'[long pause]\'). Avoid any consistent melody.",',
+    `  "voiceover": "spoken script, ${minWords}-${maxWords} words total. MUST start immediately with the hook (beginning with '${openCue}'). Order: hook (with its open loop), then the value lesson (which RESOLVES the loop, front-loaded), then at ~80% the gratitude beat (the gratitudeBeat you wrote — the soft like/comment invitation, BEFORE any mention of the guide), then the supportive transition (the pitch you wrote — ONE short sentence), and FINALLY end on the closing question (the closingQuestion you wrote), preceded by a '[long pause]'. The closing question must emotionally rhyme with the hook so the reel loops seamlessly. Keep the same sibling warmth throughout; the gratitude beat, transition, and closing must match the 'gratitudeBeat', 'pitch', and 'closingQuestion' fields in meaning. Do NOT break character or sound like a commercial. Use dynamic shifts ('[voice cracks]/[soft sigh]' for vulnerability, '[soft whisper]' for raw mid-reel moments, '[grounded with warmth]' for protective truth). Reserve '[silence]'/'[long pause]' for AFTER the lesson — never in the first 3 seconds.",`,
     '  "hashtags": "8-12 Instagram hashtags as ONE space-separated string, each starting with #, derived from THIS script\'s specific scenario and feeling. Mix broad + specific; female self-worth/boundaries/relationship niche. No spaces inside tags, no emojis, no duplicates.",',
     '  "performanceDirection": "short note on the vocal shifts, focusing on the sibling warmth, vulnerability, and empathy."',
     "}"
@@ -653,6 +717,7 @@ function parseGeneratedScript(content) {
       title: "PROTECT YOUR PEACE",
       hook: "",
       lesson: "",
+      gratitudeBeat: "",
       pitch: "",
       closingQuestion: "",
       hashtags: "",

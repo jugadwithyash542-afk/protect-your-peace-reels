@@ -283,6 +283,109 @@ app.all('/api/test-step', (req, res) => {
   });
 });
 
+// ── A/B STRATEGY ROUTES ───────────────────────────────────────────────────────
+// PRESENT: short URLs (/t/t1 .. /t/tN) each run a named hypothesis preset end-to-end and
+//          post live, so different content/retention strategies can be tested and compared.
+// RATIONALE: pairs with scripts/fetch_reels.py + strategy_log.csv to attribute engagement
+//            (skip rate, saves) back to the exact strategy that produced each reel.
+
+// Read strategies.json per request so presets can be edited without a server restart.
+function loadStrategies() {
+  try {
+    return JSON.parse(fs.readFileSync(path.join(__dirname, 'strategies.json'), 'utf-8'));
+  } catch (e) {
+    console.error('[Strategies] Failed to read strategies.json:', e.message);
+    return {};
+  }
+}
+
+// Auth check, mirroring /api/generate-reel (these routes post live, so they stay protected).
+function isAuthorized(req) {
+  const authHeader = req.headers.authorization;
+  const tokenFromHeader = authHeader ? authHeader.replace(/^Bearer\s+/i, '') : null;
+  const token = tokenFromHeader || req.query.apikey || req.query.apiKey;
+  const expected = process.env.API_KEY || process.env.FREELLM_API_KEY;
+  return Boolean(token && token === expected);
+}
+
+// Shared generate -> render -> upload runner. The existing /api/generate-reel is left untouched
+// to avoid any regression; this helper backs only the strategy routes and injects extra env.
+function runReelPipeline({ query, extraEnv = {}, strategyId = null }, res) {
+  const logPath = path.join(__dirname, 'generated-audio/pipeline.log');
+  const label = strategyId ? `strategy: ${strategyId}, ` : '';
+  fs.writeFileSync(logPath, `=== PIPELINE STARTED: ${new Date().toISOString()} (${label}query: ${query}) ===\n\n`);
+
+  const cmd = `node --max-old-space-size=96 scripts/generate-marketing-script.mjs "${query}" && python3 scripts/render_captioned_video.py && python3 scripts/upload_pipeline.py`;
+  const [shell, args] = process.platform === 'win32' ? ['cmd.exe', ['/s', '/c', cmd]] : ['/bin/sh', ['-c', cmd]];
+  const child = spawn(shell, args, { cwd: __dirname, env: { ...process.env, ...extraEnv } });
+
+  let stdoutData = '';
+  let stderrData = '';
+  child.stdout.on('data', (data) => {
+    const text = data.toString();
+    process.stdout.write(text);
+    fs.appendFileSync(logPath, text);
+    stdoutData += text;
+    if (stdoutData.length > 50000) stdoutData = stdoutData.slice(-50000);
+  });
+  child.stderr.on('data', (data) => {
+    const text = data.toString();
+    process.stderr.write(text);
+    fs.appendFileSync(logPath, text);
+    stderrData += text;
+    if (stderrData.length > 50000) stderrData = stderrData.slice(-50000);
+  });
+  child.on('close', (code) => {
+    fs.appendFileSync(logPath, `\n=== PIPELINE FINISHED: ${new Date().toISOString()} (exit code: ${code}) ===\n`);
+    if (code !== 0) {
+      return res.status(500).json({ success: false, strategy: strategyId, error: `Command failed with exit code ${code}`, details: stderrData });
+    }
+    const videoPath = 'generated-audio/rendered_reel_latest.mp4';
+    if (fs.existsSync(path.join(__dirname, videoPath))) {
+      return res.json({
+        success: true,
+        strategy: strategyId,
+        videoUrl: '/generated-audio/rendered_reel_latest.mp4',
+        scriptUrl: '/generated-audio/marketing-script-latest.md',
+        stdout: stdoutData
+      });
+    }
+    return res.status(500).json({ success: false, strategy: strategyId, error: 'Video file was not generated.', stdout: stdoutData, details: stderrData });
+  });
+}
+
+// List available strategies (read-only metadata, no auth needed).
+app.get('/api/strategies', (req, res) => {
+  const strategies = loadStrategies();
+  const out = {};
+  for (const [id, s] of Object.entries(strategies)) {
+    if (id.startsWith('_')) continue;
+    out[id] = { label: s.label, hypothesis: s.hypothesis };
+  }
+  res.json({ success: true, strategies: out });
+});
+
+// Run a strategy preset end-to-end and POST live. e.g. GET /t/t3?apikey=YOUR_KEY
+app.all('/t/:id', (req, res) => {
+  if (!isAuthorized(req)) {
+    return res.status(401).json({ success: false, error: 'Unauthorized. Invalid or missing API key.' });
+  }
+  const id = req.params.id;
+  const strat = loadStrategies()[id];
+  if (!strat || id.startsWith('_')) {
+    return res.status(404).json({ success: false, error: `Unknown strategy '${id}'. See /api/strategies.` });
+  }
+  console.log(`[Strategy ${id}] ${strat.label} — full pipeline + live post`);
+  const extraEnv = {
+    STRAT_ID: id,
+    STRAT_HOOK_ANGLE: strat.hookAngle || '',
+    STRAT_OPEN_STYLE: strat.openStyle || 'grounded',
+    STRAT_MAX_WORDS: String(strat.maxWords || 90),
+    STRAT_HOOK_CARD_SECS: String(strat.hookCardSecs != null ? strat.hookCardSecs : 2.0)
+  };
+  runReelPipeline({ query: strat.section || 'random', extraEnv, strategyId: id }, res);
+});
+
 app.listen(PORT, '0.0.0.0', () => {
   console.log(`[Render Server] Listening on port ${PORT}`);
 });
