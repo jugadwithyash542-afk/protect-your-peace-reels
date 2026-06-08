@@ -384,6 +384,12 @@ function escapeControlCharsInsideJsonStrings(value) {
 }
 
 async function ensureFreeLlmApiRunning() {
+  // If API_BASE is a remote service (not localhost/127.0.0.1), we skip local spawning checks.
+  if (!API_BASE.includes('127.0.0.1') && !API_BASE.includes('localhost')) {
+    console.log(`[Proxy check] Using remote FreeLLMAPI base: ${API_BASE}`);
+    return;
+  }
+
   const checkUrl = `${API_BASE}/api/settings/api-key`;
   try {
     const res = await fetch(checkUrl);
@@ -415,7 +421,7 @@ async function ensureFreeLlmApiRunning() {
     }
     await new Promise(resolve => setTimeout(resolve, 500));
   }
-  throw new Error("FreeLLMAPI failed to start or become responsive within 15 seconds.");
+  console.warn("⚠️ FreeLLMAPI check timed out or returned unauthorized. Continuing anyway...");
 }
 
 main().catch(console.error);
