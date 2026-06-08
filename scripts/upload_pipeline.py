@@ -4,6 +4,7 @@ import re
 import sys
 import time
 import requests
+import json
 from pathlib import Path
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -117,16 +118,34 @@ def upload_to_google_drive(file_path):
         print("ℹ️ GOOGLE_DRIVE_FOLDER_ID is not configured in .env. Skipping Google Drive upload.")
         return None
 
-    if not os.path.exists(GOOGLE_DRIVE_CREDENTIALS_PATH):
-        print(f"⚠️ Google Drive credentials file not found at {GOOGLE_DRIVE_CREDENTIALS_PATH}. Skipping upload.")
-        return None
+    creds_json = os.environ.get('GOOGLE_DRIVE_CREDENTIALS_JSON')
+    creds = None
+    scopes = ['https://www.googleapis.com/auth/drive']
+
+    if creds_json and creds_json.strip():
+        print("🔑 Authenticating Google Drive via environment JSON credentials...")
+        try:
+            creds = service_account.Credentials.from_service_account_info(
+                json.loads(creds_json), scopes=scopes
+            )
+        except Exception as e:
+            print(f"❌ Failed to load Google Drive credentials JSON from environment: {e}")
+            return None
+    else:
+        if not os.path.exists(GOOGLE_DRIVE_CREDENTIALS_PATH):
+            print(f"⚠️ Google Drive credentials file not found at {GOOGLE_DRIVE_CREDENTIALS_PATH} and GOOGLE_DRIVE_CREDENTIALS_JSON is not set in environment. Skipping upload.")
+            return None
+        print(f"🔑 Authenticating Google Drive via credentials file: {GOOGLE_DRIVE_CREDENTIALS_PATH}...")
+        try:
+            creds = service_account.Credentials.from_service_account_file(
+                GOOGLE_DRIVE_CREDENTIALS_PATH, scopes=scopes
+            )
+        except Exception as e:
+            print(f"❌ Failed to load Google Drive credentials file: {e}")
+            return None
 
     print("🚀 Uploading video to Google Drive...")
     try:
-        scopes = ['https://www.googleapis.com/auth/drive']
-        creds = service_account.Credentials.from_service_account_file(
-            GOOGLE_DRIVE_CREDENTIALS_PATH, scopes=scopes
-        )
         service = build('drive', 'v3', credentials=creds, cache_discovery=False)
 
         # Generate folder-friendly date-based filename to avoid overwrites
