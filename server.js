@@ -75,6 +75,22 @@ app.get('/api/pipeline-log', (req, res) => {
   }
 });
 
+app.get('/api/pipeline-log-tail', (req, res) => {
+  const logPath = path.join(__dirname, 'generated-audio/pipeline.log');
+  if (fs.existsSync(logPath)) {
+    try {
+      const content = fs.readFileSync(logPath, 'utf-8');
+      const tail = content.slice(-10000); // Get last 10KB
+      res.setHeader('Content-Type', 'text/plain');
+      return res.send(tail);
+    } catch (err) {
+      return res.status(500).send('Error reading log file: ' + err.message);
+    }
+  } else {
+    return res.status(404).send('No log file found.');
+  }
+});
+
 app.get('/api/list-files', (req, res) => {
   const dirPath = path.join(__dirname, 'generated-audio');
   if (!fs.existsSync(dirPath)) {
