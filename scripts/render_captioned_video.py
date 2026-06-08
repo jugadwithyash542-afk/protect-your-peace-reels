@@ -377,10 +377,8 @@ def get_video_duration(video_path):
     return 10.90  # Default fallback
 
 def escape_filter_path(path):
-    # Escape colons and backslashes for FFmpeg filter graph
-    escaped = path.replace("\\", "/").replace(":", "\\:")
-    escaped = escaped.replace("'", "'\\''")
-    return f"'{escaped}'"
+    # Escape colons and backslashes for FFmpeg filter graph without surrounding single quotes
+    return path.replace("\\", "/").replace(":", "\\:")
 
 def render_video(video_path, audio_path, ass_path, output_path, duration):
     print(f"Rendering Hormozi styled video reel...")
@@ -388,9 +386,8 @@ def render_video(video_path, audio_path, ass_path, output_path, duration):
     outro_video_path = os.path.join(workspace, "Doc/Final/Video Project 1.mp4")
     has_outro = os.path.exists(outro_video_path)
     
-    # Calculate relative ass path to avoid absolute path/colon escaping issues
-    rel_ass_path = os.path.relpath(ass_path, workspace)
-    escaped_ass_path = escape_filter_path(rel_ass_path)
+    # Calculate escaped absolute ass path (unquoted is more robust for libass on Linux)
+    escaped_ass_path = escape_filter_path(ass_path)
     
     if has_outro:
         outro_dur = get_video_duration(outro_video_path)

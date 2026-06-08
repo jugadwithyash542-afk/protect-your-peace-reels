@@ -67,7 +67,7 @@ def generate_female_targeted_caption(md_path):
     if not os.path.exists(md_path):
         print(f"⚠️ Marketing script not found at {md_path}. Using a default caption.")
         return ("Hey sis, protecting your peace is not selfish—it is necessary. 💖\n\n"
-                "👉 Hit Follow to join the sisterhood, and click the link in our bio to grab your Boundary Script Toolkit today! 🕊️\n\n"
+                "👉 Hit Follow to join the sisterhood, and grab your Boundary Script Toolkit today at https://girlstalk.justakemycard.com/ 🕊️\n\n"
                 "#MentalLoad #Boundaries #SelfCareForWomen #PeoplePleaser #ReclaimYourPeace #HeySis #WomenEmpowerment #MentalWellbeing #SayNoWithoutGuilt")
 
     try:
@@ -100,7 +100,7 @@ def generate_female_targeted_caption(md_path):
             caption_parts.append(lesson)
 
         # Standard female-support Call to Action
-        caption_parts.append("👉 Hit Follow to join the sisterhood, and click the link in our bio to grab your Boundary Script Toolkit today! 🕊️")
+        caption_parts.append("👉 Hit Follow to join the sisterhood, and grab your Boundary Script Toolkit today at https://girlstalk.justakemycard.com/ 🕊️")
 
         # Female-targeted hashtags
         hashtags = (
@@ -115,7 +115,7 @@ def generate_female_targeted_caption(md_path):
     except Exception as e:
         print(f"⚠️ Error parsing markdown caption: {e}. Falling back to default.")
         return ("Hey sis, protecting your peace is not selfish—it is necessary. 💖\n\n"
-                "👉 Hit Follow to join the sisterhood, and click the link in our bio to grab your Boundary Script Toolkit today! 🕊️\n\n"
+                "👉 Hit Follow to join the sisterhood, and grab your Boundary Script Toolkit today at https://girlstalk.justakemycard.com/ 🕊️\n\n"
                 "#MentalLoad #Boundaries #SelfCareForWomen #PeoplePleaser #ReclaimYourPeace #HeySis #WomenEmpowerment #MentalWellbeing #SayNoWithoutGuilt")
 
 
