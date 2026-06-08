@@ -93,6 +93,7 @@ type GeneratedScript = {
   voiceover: string;
   premiumTeaser: string;
   closingQuestion: string;
+  hashtags: string;
   fullText: string;
 };
 
@@ -861,7 +862,11 @@ function buildScriptSystemPrompt(teaserAngle: string, teaserBioCue: string, clos
     "- Validate FIRST (the feeling makes sense, she is not alone), THEN ask. It must feel like 'I am right here with you', never like 'comment below' or engagement bait. No yes/no trap, no advice, no selling.",
     "- This is the ONLY thing that may follow the emotional body, and it ENDS the voiceover. Lead it with a '[grounded with warmth]' or '[soft whisper]' cue, with a '[long pause]' before it.",
     "- Write it FRESH around this run's closing ANGLE (do NOT quote it literally): " + closingAngle + ".",
-    "Return only compact valid JSON with these string fields: hook, reasonToListen, performanceDirection, voiceover, premiumTeaser, closingQuestion.",
+    "HASHTAGS (derive from THIS script's content, target women):",
+    "- Provide 8-12 Instagram hashtags as ONE space-separated string, each starting with '#', no spaces inside a tag, based on this script's specific scenario and feeling.",
+    "- Hashtags MAY use discovery terms banned from the voiceover (e.g. #Gaslighting #Boundaries #PeoplePleaser).",
+    "- TARGET A FEMALE AUDIENCE HARD: favour women's-community tags (e.g. #WomenSupportingWomen #GirlTalk #SoftGirlEra #HealingGirlEra #SelfWorth #FeminineEnergy #Sisterhood) plus topic-specific ones. AVOID gender-neutral/male-skewing tags (#motivation, #mindset, #success, #hustle, #selfimprovement).",
+    "Return only compact valid JSON with these string fields: hook, reasonToListen, performanceDirection, voiceover, premiumTeaser, closingQuestion, hashtags.",
     "Do not use markdown fences. Do not add commentary. Do not insert unescaped line breaks inside string values."
   ].join("\n");
 }
@@ -883,6 +888,7 @@ function buildScriptUserPrompt(
     "voiceover: spoken script. MUST start immediately with the hook (beginning with '[soft whisper]'). MUST use sibling warmth and dynamic shifts (using '[soft whisper]' for raw moments, '[voice cracks]/[soft sigh]' for vulnerability, and '[grounded with warmth]' for protective truth, driven by clear motives) and embrace silence (use '[silence]' or '[long pause]'). Avoid any consistent melody. Do NOT mention labels (gaslighting, boundaries, etc.), give advice/scripts, or pitch guides in this field. It MUST END on the closing question (the closingQuestion you wrote), preceded by a '[long pause]' — nothing after it.",
     `premiumTeaser: one fresh line for the full guide, written in the big-sis voice. Build it around this run's angle: "${teaserAngle}", and point to the guide using this idea reworded naturally: "${teaserBioCue}". Use a word like 'guide' or 'support'. Never reuse the banned phrasings.`,
     `closingQuestion: ONE soft, open-ended question that ends the reel. Validate her experience first, then ask if she has felt this too — a safe-space conversation opener (spirit of "have you ever felt this way?"). Build it around: "${closingAngle}". Warm, short, no yes/no trap, no advice, no selling. This same line must be the final beat of the voiceover.`,
+    "hashtags: 8-12 Instagram hashtags as ONE space-separated string, each starting with #, derived from this script's scenario. Skew female (women's-community tags + topic-specific); avoid gender-neutral/male-skewing tags. No spaces inside tags, no duplicates.",
   ].join("\n");
 }
 
@@ -895,9 +901,10 @@ function parseGeneratedScript(content: string): GeneratedScript {
   const performanceDirection = normalizeGeneratedField(parsed.performanceDirection);
   const voiceover = normalizeGeneratedField(parsed.voiceover);
   const premiumTeaser = normalizeGeneratedField(parsed.premiumTeaser);
-  // closingQuestion is optional at parse level: the voiceover already ends on it, so a missing
-  // top-level field must not fail the run. Capture it when present for display/reference.
+  // closingQuestion and hashtags are optional at parse level (the voiceover already ends on the
+  // question; a missing field must not fail the run). Capture them when present.
   const closingQuestion = normalizeGeneratedField(parsed.closingQuestion);
+  const hashtags = normalizeGeneratedField(parsed.hashtags);
 
   if (!hook || !reasonToListen || !performanceDirection || !voiceover || !premiumTeaser) {
     throw new Error("Generated script is missing a required section.");
@@ -910,6 +917,7 @@ function parseGeneratedScript(content: string): GeneratedScript {
     voiceover,
     premiumTeaser,
     closingQuestion,
+    hashtags,
     fullText: [
       `Hook: ${hook}`,
       `Why listen: ${reasonToListen}`,
@@ -919,6 +927,7 @@ function parseGeneratedScript(content: string): GeneratedScript {
       "",
       closingQuestion ? `Closing question: ${closingQuestion}` : "",
       `Paid guide teaser: ${premiumTeaser}`,
+      hashtags ? `Hashtags: ${hashtags}` : "",
     ].filter(Boolean).join("\n"),
   };
 }

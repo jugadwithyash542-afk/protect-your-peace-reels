@@ -211,6 +211,9 @@ async function main() {
     "## Closing Question (Safe-Space Conversation Opener)",
     scriptData.closingQuestion || "",
     "",
+    "## Hashtags",
+    scriptData.hashtags || "",
+    "",
     "## Spoken Voiceover",
     `*(${scriptData.performanceDirection})*`,
     "",
@@ -520,7 +523,14 @@ async function generateMarketingScript(apiKey, section) {
     "EMBRACE SILENCE, WARMTH & EMPATHY:",
     "- Focus on organic signs of empathy: include bracketed voice texture and breath cues directly in the voiceover text such as '[soft sigh]', '[voice cracks]', '[catch in throat]', '[tremble]', '[soft whisper]', or '[grounded with warmth]'. Every shift must have a clear motive driven by sibling empathy.",
     "- Insert '[silence]' or '[long pause]' after heavy statements so the realizations sit heavily in the air.",
-    "Return only compact valid JSON representing EXACTLY ONE script object (with keys: title, hook, lesson, pitch, closingQuestion, performanceDirection, voiceover). Do NOT wrap it in a list or array. Do NOT output multiple script variants.",
+    "HASHTAG RULES (derive these from THIS script's actual content):",
+    "- Provide 8-12 Instagram hashtags in the 'hashtags' field as ONE space-separated string, each starting with '#', no spaces inside a tag (e.g. '#EmotionalLabor').",
+    "- Base them on the specific scenario, feeling, and theme of THIS script — not generic filler. Mix a few broad discovery tags with several specific ones tied to this exact situation.",
+    "- Hashtags MAY use discovery terms that are banned from the spoken voiceover (e.g. #Gaslighting #Boundaries #PeoplePleaser) — these are how women searching that theme find the reel.",
+    "- TARGET A FEMALE AUDIENCE HARD: prefer tags that live in women's communities (e.g. #WomenSupportingWomen #GirlTalk #SoftGirlEra #HealingGirlEra #SelfWorth #FeminineEnergy #Sisterhood #ThatGirl) alongside the topic-specific ones. The aim is for Instagram to surface this to women's feeds.",
+    "- AVOID gender-neutral / male-skewing tags (e.g. #motivation, #mindset, #success, #hustle, #selfimprovement, #discipline) — they push the reel into mixed or male feeds.",
+    "- No emojis inside tags, no duplicates, no banned-phrasing sentences.",
+    "Return only compact valid JSON representing EXACTLY ONE script object (with keys: title, hook, lesson, pitch, closingQuestion, hashtags, performanceDirection, voiceover). Do NOT wrap it in a list or array. Do NOT output multiple script variants.",
     "Do not use markdown fences. Do not add commentary. Do not insert unescaped line breaks inside string values. Double quotes inside string values must be escaped as \\\"."
   ].join("\n");
 
@@ -536,6 +546,7 @@ async function generateMarketingScript(apiKey, section) {
     '  "lesson": "short value teaching lesson based directly on the book context, helping them recognize the situation.",',
     `  "pitch": "YOU write the supportive transition to the guide — do not copy a template. Build it around this run's angle: \\"${pitchAngle}\\", and point to the guide using this idea reworded naturally: \\"${bioCue}\\". Big-sis voice, offered purely as support. No sales pitch, no pricing. Never reuse the banned phrasings from the system rules.",`,
     `  "closingQuestion": "ONE soft, open-ended question that ENDS the reel. Validate her experience first, then ask if she has felt this too — a safe-space conversation opener (spirit of 'have you ever felt this way?'). Build it around: \\"${closingAngle}\\". Warm, short, no yes/no trap, no advice, no selling. This is the final beat.",`,
+    '  "hashtags": "8-12 Instagram hashtags as ONE space-separated string, each starting with #, derived from THIS script\'s specific scenario and feeling. Mix broad + specific; female self-worth/boundaries/relationship niche. No spaces inside tags, no emojis, no duplicates.",',
     '  "performanceDirection": "short note on the vocal shifts, focusing on the sibling warmth, vulnerability, and empathy.",',
     '  "voiceover": "spoken script. MUST start immediately with the hook (beginning with \'[soft whisper]\'). Deliver the hook, then the value lesson, then the supportive transition (the pitch you wrote), and FINALLY end on the closing question (the closingQuestion you wrote), preceded by a \'[long pause]\'. The reel MUST end on that soft validating question — nothing after it. Keep the same sibling warmth throughout; the transition and closing must match the \'pitch\' and \'closingQuestion\' fields in meaning. Do NOT break character or sound like a commercial. Use dynamic shifts (using \'[soft whisper]\' for raw moments, \'[voice cracks]/[soft sigh]\' for vulnerability, and \'[grounded with warmth]\' for protective truth) and embrace silence (use \'[silence]\' or \'[long pause]\'). Avoid any consistent melody."',
     "}"
@@ -624,10 +635,12 @@ function parseGeneratedScript(content) {
       }
     }
 
-    // closingQuestion is optional at the parser level: the voiceover already ends on it, so a
-    // missing top-level field must not fail the whole run. Recover it if present, else default empty.
+    // closingQuestion and hashtags are optional at the parser level (voiceover already ends on the
+    // question; hashtags have a deterministic fallback in the uploader). Recover if present, else "".
     const closing = extractFieldRegex(targetBlock, "closingQuestion");
     result.closingQuestion = closing !== null ? closing : "";
+    const tags = extractFieldRegex(targetBlock, "hashtags");
+    result.hashtags = tags !== null ? tags : "";
 
     console.log("🎉 Self-healing parser successfully recovered all fields!");
     return result;

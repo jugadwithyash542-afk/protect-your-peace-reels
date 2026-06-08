@@ -15,6 +15,7 @@ site.addsitedir(site.getusersitepackages())
 import time
 import requests
 import json
+import random
 from pathlib import Path
 from googleapiclient.discovery import build
 from googleapiclient.http import MediaFileUpload
@@ -40,6 +41,27 @@ INSTAGRAM_ACCESS_TOKEN = os.environ.get('INSTAGRAM_ACCESS_TOKEN')
 INSTAGRAM_ACCOUNT_ID = os.environ.get('INSTAGRAM_ACCOUNT_ID')
 INSTAGRAM_API_VERSION = 'v21.0'
 
+# Instagram reach / discovery options (all OPTIONAL — each is a no-op if its env var is unset,
+# so existing deployments behave exactly as before until these are configured).
+# PAST: the Reel container sent only media_type/video_url/caption/access_token.
+# ISSUE: no collaborators, no chosen cover frame, no feed-share flag, and the store link sat in
+#        the caption — leaving free Graph-API reach/discovery signals on the table.
+# PRESENT: expose collaborators, a cover frame (thumb_offset), share_to_feed, an optional location,
+#          and a "link in first comment" toggle, all driven by env config.
+# RATIONALE: collaborator posts reach a partner's whole audience, a strong cover lifts profile
+#            visits→follows, and a link-free caption avoids the reach penalty outbound links carry.
+STORE_URL = os.environ.get('STORE_URL', 'https://girlstalk.justakemycard.com/')
+# Up to 3 IG usernames (comma-separated). A collab Reel publishes to every collaborator's feed too.
+INSTAGRAM_COLLABORATORS = os.environ.get('INSTAGRAM_COLLABORATORS', '')
+# Cover frame as milliseconds into the video (e.g. "1000" picks the frame at 1.0s). Blank = default.
+INSTAGRAM_THUMB_OFFSET_MS = os.environ.get('INSTAGRAM_THUMB_OFFSET_MS', '')
+# Optional Facebook Page-backed location id to geotag the Reel (helps local/Explore surfacing).
+INSTAGRAM_LOCATION_ID = os.environ.get('INSTAGRAM_LOCATION_ID', '')
+# When true, keep the caption link-free and post the store link as the first comment instead.
+INSTAGRAM_LINK_IN_COMMENT = os.environ.get('INSTAGRAM_LINK_IN_COMMENT', 'true').lower() == 'true'
+# Optional: validate/prune hashtags via ig_hashtag_search (30 unique/week cap, so cached weekly).
+INSTAGRAM_HASHTAG_SEARCH = os.environ.get('INSTAGRAM_HASHTAG_SEARCH', 'false').lower() == 'true'
+
 # Facebook Page Reels/Videos
 FACEBOOK_ENABLED = os.environ.get('FACEBOOK_ENABLED', 'true').lower() == 'true'
 FACEBOOK_ACCESS_TOKEN = os.environ.get('FACEBOOK_ACCESS_TOKEN')
@@ -58,17 +80,212 @@ VIDEO_PATH = os.path.join(workspace, 'generated-audio/rendered_reel_latest.mp4')
 SCRIPT_PATH = os.path.join(workspace, 'generated-audio/marketing-script-latest.md')
 
 
+# ----------------- DYNAMIC HASHTAGS -----------------
+# PAST: a single hardcoded 11-tag block went out on every post.
+# ISSUE: identical tags every time look spammy to the algorithm and never adapt to the topic,
+#        so the post is not surfaced to the specific sub-audiences searching that theme.
+# PRESENT: build a fresh, tiered mix per post (broad + mid-size + brand) PLUS topic tags derived
+#          from THIS reel's section/title, shuffled so no two posts carry the same block.
+# RATIONALE: mixing reach tiers and adding on-topic tags is the established discovery strategy;
+#            doing it deterministically in code (no LLM) means zero hallucination and zero API cost.
+# NOTE: these pools are deliberately FEMALE-CODED. We avoid gender-neutral/male-skewing tags
+# (#mindset, #motivation, #success, #discipline, #selfimprovement) because they push the reel
+# into mixed/male feeds. The goal is to bias Instagram toward surfacing this to women.
+HASHTAGS_BROAD = [
+    "#SelfCare", "#SelfLove", "#WomenSupportingWomen", "#GirlTalk", "#SoftGirlEra",
+    "#FeminineEnergy", "#WomenEmpowerment", "#SelfWorth", "#ThatGirl",
+]
+HASHTAGS_MID = [
+    "#EmotionalHealth", "#HealthyRelationships", "#PeoplePleaser", "#ReclaimYourPeace",
+    "#HealingGirlEra", "#ToxicRelationships", "#SelfRespect", "#Sisterhood",
+    "#HealingJourney", "#SoftLife", "#WomensWellness", "#DivineFeminine",
+]
+HASHTAGS_BRAND = [
+    "#ProtectYourPeace", "#HeySis", "#SistersSupport", "#SayNoWithoutGuilt", "#MentalLoad",
+]
+# Keyword (lowercase substring of the section/title) -> extra on-topic tags.
+HASHTAGS_TOPIC = {
+    "money": ["#FinancialBoundaries", "#MoneyAndFriends"],
+    "financ": ["#FinancialBoundaries", "#FinancialFreedomForWomen"],
+    "gaslight": ["#Gaslighting", "#TrustYourself"],
+    "guilt": ["#GuiltTrip", "#StopFeelingGuilty"],
+    "love bomb": ["#LoveBombing", "#SlowDating"],
+    "silent": ["#SilentTreatment", "#EmotionalNeglect"],
+    "apolog": ["#StopApologizing", "#NoMoreSorry"],
+    "sorry": ["#StopApologizing", "#NoMoreSorry"],
+    "work": ["#WorkBoundaries", "#BurnoutRecovery"],
+    "boss": ["#WorkBoundaries", "#CareerWomen"],
+    "family": ["#FamilyBoundaries", "#ToxicFamily"],
+    "in-law": ["#FamilyBoundaries", "#InLaws"],
+    "text": ["#DigitalBoundaries", "#DatingAdvice"],
+    "digital": ["#DigitalBoundaries", "#PrivacyMatters"],
+    "privacy": ["#DigitalBoundaries", "#PrivacyMatters"],
+    "backpack": ["#InvisibleLabor", "#EmotionalLabor"],
+    "load": ["#InvisibleLabor", "#EmotionalLabor"],
+    "no": ["#SayNo", "#BoundariesAreHealthy"],
+}
+
+
+def _extract_topic_text(md_path):
+    """Pull the title + source-section line from the script md to derive topic tags."""
+    try:
+        with open(md_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        title = re.search(r'^#\s*(?:Ebook-Driven Marketing Script:\s*)?(.*)$', content, re.MULTILINE)
+        # The real md line is "- **Ebook Source Section:** [Name](...)" — skip anything (incl. the
+        # "** " bold markers) between the label and the bracketed section name.
+        section = re.search(r'Ebook Source Section:[^\[]*\[(.*?)\]', content)
+        return ((title.group(1) if title else "") + " " + (section.group(1) if section else "")).lower()
+    except Exception:
+        return ""
+
+
+def _extract_script_hashtags(md_path):
+    """Read the '## Hashtags' block the script generator wrote (tags derived from the actual script)."""
+    try:
+        with open(md_path, 'r', encoding='utf-8') as f:
+            content = f.read()
+        m = re.search(r'##\s*Hashtags\s*\n(.*?)(?=\n\s*##|\Z)', content, re.DOTALL)
+        if not m:
+            return []
+        # Keep only well-formed #tags (no spaces, alphanumeric/underscore).
+        return re.findall(r'#\w+', m.group(1))
+    except Exception:
+        return []
+
+
+def build_dynamic_hashtags(md_path):
+    """
+    Assemble the hashtag string for this reel.
+    PRESENT: prefer the hashtags the LLM generated FROM this exact script (it knows the content),
+             then guarantee the core brand tag and layer 2 broad reach tags. Fall back to the
+             deterministic tiered+keyword mix only when the script provided none (older md).
+    RATIONALE: script-derived tags are the most on-topic; brand + broad tiers protect reach and
+               identity. No LLM call here and no hallucination risk — we only read what was written.
+    """
+    script_tags = _extract_script_hashtags(md_path)
+    if script_tags:
+        chosen = list(script_tags)
+        if "#ProtectYourPeace" not in {t.lower() for t in chosen} and "#protectyourpeace" not in {t.lower() for t in chosen}:
+            chosen.append("#ProtectYourPeace")
+        for t in random.sample(HASHTAGS_BROAD, k=2):
+            chosen.append(t)
+        seen, deduped = set(), []
+        for t in chosen:
+            if t.lower() not in seen:
+                seen.add(t.lower()); deduped.append(t)
+        deduped = deduped[:20]
+        if INSTAGRAM_HASHTAG_SEARCH:
+            deduped = _validate_hashtags_via_search(deduped)
+        return " ".join(deduped)
+
+    # Fallback: deterministic tiered + section-keyword mix.
+    topic_text = _extract_topic_text(md_path)
+
+    topic_tags = []
+    for keyword, tags in HASHTAGS_TOPIC.items():
+        if keyword in topic_text:
+            topic_tags.extend(tags)
+
+    chosen = []
+    chosen += random.sample(HASHTAGS_BROAD, k=min(3, len(HASHTAGS_BROAD)))
+    chosen += random.sample(HASHTAGS_MID, k=min(4, len(HASHTAGS_MID)))
+    chosen += random.sample(HASHTAGS_BRAND, k=min(2, len(HASHTAGS_BRAND)))
+    # Always keep the core brand tag for consistency, then layer topic tags.
+    if "#ProtectYourPeace" not in chosen:
+        chosen.append("#ProtectYourPeace")
+    # De-dupe topic tags against what we already have, then add up to 3.
+    for t in topic_tags:
+        if t not in chosen:
+            chosen.append(t)
+
+    # De-dupe (preserve order) and cap at 15 (clean, non-spammy).
+    seen, deduped = set(), []
+    for t in chosen:
+        if t.lower() not in seen:
+            seen.add(t.lower())
+            deduped.append(t)
+    deduped = deduped[:15]
+    random.shuffle(deduped)
+
+    if INSTAGRAM_HASHTAG_SEARCH:
+        deduped = _validate_hashtags_via_search(deduped)
+
+    return " ".join(deduped)
+
+
+def _validate_hashtags_via_search(tags):
+    """
+    OPTIONAL: prune tags Instagram does not recognise, via ig_hashtag_search.
+    The endpoint caps at 30 unique hashtag lookups per account per 7 days, so results are cached
+    to disk and re-checked at most weekly, and we never exceed the weekly budget on a single run.
+    Any failure returns the tags unchanged — this must never block a post.
+    """
+    if not (INSTAGRAM_ACCESS_TOKEN and INSTAGRAM_ACCOUNT_ID):
+        return tags
+    cache_path = os.path.join(workspace, 'generated-audio', '.ig_hashtag_cache.json')
+    now = time.time()
+    week = 7 * 24 * 3600
+    try:
+        cache = json.load(open(cache_path)) if os.path.exists(cache_path) else {}
+    except Exception:
+        cache = {}
+
+    lookups_this_week = sum(1 for v in cache.values() if now - v.get('ts', 0) < week)
+    result = []
+    for tag in tags:
+        name = tag.lstrip('#').lower()
+        entry = cache.get(name)
+        fresh = entry and (now - entry.get('ts', 0) < week)
+        if fresh:
+            if entry.get('valid', True):
+                result.append(tag)
+            continue
+        if lookups_this_week >= 28:  # stay safely under the 30/week cap
+            result.append(tag)        # budget spent — keep the tag, validate it next week
+            continue
+        try:
+            r = requests.get(
+                f"https://graph.facebook.com/{INSTAGRAM_API_VERSION}/ig_hashtag_search",
+                params={'user_id': INSTAGRAM_ACCOUNT_ID, 'q': name, 'access_token': INSTAGRAM_ACCESS_TOKEN},
+                timeout=15,
+            )
+            valid = bool(r.json().get('data'))
+            cache[name] = {'valid': valid, 'ts': now}
+            lookups_this_week += 1
+            if valid:
+                result.append(tag)
+        except Exception:
+            result.append(tag)  # on any error, keep the tag
+    try:
+        os.makedirs(os.path.dirname(cache_path), exist_ok=True)
+        json.dump(cache, open(cache_path, 'w'))
+    except Exception:
+        pass
+    return result or tags
+
+
 # ----------------- CAPTION GENERATION -----------------
-def generate_female_targeted_caption(md_path):
+def generate_female_targeted_caption(md_path, include_link=True, hashtags=None):
     """
     Parses the generated markdown script to extract the Hook and Core Value Point,
     and returns a clean, polished Instagram/Facebook/Threads caption targeted at a female audience.
     """
+    # CTA line: with the raw store link, or link-free when the link goes in the first comment.
+    cta_line = (
+        f"👉 Hit Follow to join the sisterhood, and grab your Boundary Script Toolkit today at {STORE_URL} 🕊️"
+        if include_link else
+        "👉 Hit Follow to join the sisterhood — your Boundary Script Toolkit link is in the first comment 👇🕊️"
+    )
+    tags = hashtags or (
+        "#MentalLoad #Boundaries #SelfCareForWomen #PeoplePleaser #ReclaimYourPeace "
+        "#HeySis #WomenEmpowerment #MentalWellbeing #SayNoWithoutGuilt #SistersSupport #ProtectYourPeace"
+    )
+
     if not os.path.exists(md_path):
         print(f"⚠️ Marketing script not found at {md_path}. Using a default caption.")
         return ("Hey sis, protecting your peace is not selfish—it is necessary. 💖\n\n"
-                "👉 Hit Follow to join the sisterhood, and grab your Boundary Script Toolkit today at https://girlstalk.justakemycard.com/ 🕊️\n\n"
-                "#MentalLoad #Boundaries #SelfCareForWomen #PeoplePleaser #ReclaimYourPeace #HeySis #WomenEmpowerment #MentalWellbeing #SayNoWithoutGuilt")
+                f"{cta_line}\n\n{tags}")
 
     try:
         with open(md_path, 'r', encoding='utf-8') as f:
@@ -99,15 +316,11 @@ def generate_female_targeted_caption(md_path):
         if lesson:
             caption_parts.append(lesson)
 
-        # Standard female-support Call to Action
-        caption_parts.append("👉 Hit Follow to join the sisterhood, and grab your Boundary Script Toolkit today at https://girlstalk.justakemycard.com/ 🕊️")
+        # Standard female-support Call to Action (link-aware)
+        caption_parts.append(cta_line)
 
-        # Female-targeted hashtags
-        hashtags = (
-            "#MentalLoad #Boundaries #SelfCareForWomen #PeoplePleaser #ReclaimYourPeace "
-            "#HeySis #WomenEmpowerment #MentalWellbeing #SayNoWithoutGuilt #SistersSupport #ProtectYourPeace"
-        )
-        caption_parts.append(hashtags)
+        # Per-post dynamic hashtags (passed in) or the default block
+        caption_parts.append(tags)
 
         caption = "\n\n".join(caption_parts)
         return caption
@@ -115,8 +328,7 @@ def generate_female_targeted_caption(md_path):
     except Exception as e:
         print(f"⚠️ Error parsing markdown caption: {e}. Falling back to default.")
         return ("Hey sis, protecting your peace is not selfish—it is necessary. 💖\n\n"
-                "👉 Hit Follow to join the sisterhood, and grab your Boundary Script Toolkit today at https://girlstalk.justakemycard.com/ 🕊️\n\n"
-                "#MentalLoad #Boundaries #SelfCareForWomen #PeoplePleaser #ReclaimYourPeace #HeySis #WomenEmpowerment #MentalWellbeing #SayNoWithoutGuilt")
+                f"{cta_line}\n\n{tags}")
 
 
 # ----------------- GOOGLE DRIVE UPLOAD -----------------
@@ -217,7 +429,21 @@ def upload_to_temp_host(video_path):
 
 
 # ----------------- INSTAGRAM REELS UPLOAD -----------------
-def post_to_instagram_reel(video_path, caption, public_video_url):
+def post_instagram_comment(media_id, text):
+    """Post a first comment on a published Reel (used to keep the store link out of the caption)."""
+    try:
+        url = f"https://graph.facebook.com/{INSTAGRAM_API_VERSION}/{media_id}/comments"
+        res = requests.post(url, data={'message': text, 'access_token': INSTAGRAM_ACCESS_TOKEN}, timeout=30)
+        if res.ok and 'id' in res.json():
+            print(f"  💬 Posted link as the first comment.")
+            return True
+        print(f"  ⚠️ Could not post first comment: {res.json().get('error', {}).get('message', res.text)}")
+    except Exception as e:
+        print(f"  ⚠️ First-comment post failed: {e}")
+    return False
+
+
+def post_to_instagram_reel(video_path, caption, public_video_url, link_url=None):
     """
     Uploads and publishes the video to Instagram Reels using the Meta Graph API.
     """
@@ -241,9 +467,20 @@ def post_to_instagram_reel(video_path, caption, public_video_url):
             'media_type': 'REELS',
             'video_url': public_video_url,
             'caption': caption,
+            'share_to_feed': 'true',          # ensure the Reel also lands on the main feed/grid
             'access_token': INSTAGRAM_ACCESS_TOKEN
         }
-        
+
+        # Optional reach/discovery signals — only attached when configured in .env.
+        collaborators = [u.strip() for u in INSTAGRAM_COLLABORATORS.split(',') if u.strip()][:3]
+        if collaborators:
+            container_payload['collaborators'] = json.dumps(collaborators)
+            print(f"  🤝 Inviting collaborators: {', '.join(collaborators)}")
+        if INSTAGRAM_THUMB_OFFSET_MS.strip().isdigit():
+            container_payload['thumb_offset'] = INSTAGRAM_THUMB_OFFSET_MS.strip()
+        if INSTAGRAM_LOCATION_ID.strip():
+            container_payload['location_id'] = INSTAGRAM_LOCATION_ID.strip()
+
         print("  → Creating Instagram media container...")
         res = requests.post(container_url, data=container_payload, timeout=60)
         res_data = res.json()
@@ -302,6 +539,9 @@ def post_to_instagram_reel(video_path, caption, public_video_url):
         if 'id' in publish_data:
             media_id = publish_data['id']
             print(f"🎉 SUCCESS! Instagram Reel published. Media ID: {media_id}")
+            # Keep the link out of the caption (reach) and drop it as the first comment instead.
+            if INSTAGRAM_LINK_IN_COMMENT and link_url:
+                post_instagram_comment(media_id, f"💖 Your Boundary Script Toolkit is here: {link_url}")
             return media_id
         else:
             err_msg = publish_data.get('error', {}).get('message', 'Unknown publish error')
@@ -496,11 +736,17 @@ def main():
     # 1. Google Drive
     drive_link = upload_to_google_drive(VIDEO_PATH)
 
-    # 2. Extract and format Female-Targeted Caption
-    caption = generate_female_targeted_caption(SCRIPT_PATH)
-    print("\n📝 Generated Female-Targeted Caption:")
+    # 2. Build per-post dynamic hashtags, then two caption variants:
+    #    - Instagram: link-free (the store link goes in the first comment for better reach)
+    #    - Facebook/Threads: link in caption (those platforms do not penalise outbound links)
+    hashtags = build_dynamic_hashtags(SCRIPT_PATH)
+    print(f"\n🏷️  Dynamic hashtags: {hashtags}")
+    ig_link_free = INSTAGRAM_LINK_IN_COMMENT
+    caption_ig = generate_female_targeted_caption(SCRIPT_PATH, include_link=not ig_link_free, hashtags=hashtags)
+    caption_link = generate_female_targeted_caption(SCRIPT_PATH, include_link=True, hashtags=hashtags)
+    print("\n📝 Generated Female-Targeted Caption (Instagram):")
     print("-" * 50)
-    print(caption)
+    print(caption_ig)
     print("-" * 50 + "\n")
 
     # 3. Determine public hosting link for Instagram and Threads
@@ -523,9 +769,9 @@ def main():
                 print("ℹ️ Skipping temporary public hosting upload (no active Instagram or Threads credentials).")
 
     # 4. Platform Publishing
-    instagram_id = post_to_instagram_reel(VIDEO_PATH, caption, public_video_url)
-    facebook_id = post_to_facebook_page(VIDEO_PATH, caption)
-    threads_id = post_to_threads_profile(VIDEO_PATH, caption, public_video_url)
+    instagram_id = post_to_instagram_reel(VIDEO_PATH, caption_ig, public_video_url, link_url=STORE_URL)
+    facebook_id = post_to_facebook_page(VIDEO_PATH, caption_link)
+    threads_id = post_to_threads_profile(VIDEO_PATH, caption_link, public_video_url)
 
     print("\n" + "=" * 60)
     print("🏁 PIPELINE COMPLETED")
