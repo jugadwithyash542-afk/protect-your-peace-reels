@@ -12,10 +12,13 @@ const pythonPackagesDir = path.join(__dirname, 'python_packages');
 if (!fs.existsSync(pythonPackagesDir) || fs.readdirSync(pythonPackagesDir).length === 0) {
   console.log("[Python Deps] Local python_packages directory is missing or empty. Installing...");
   try {
-    execSync(`python3 -m pip install -r requirements.txt --target ./python_packages`, { stdio: 'inherit' });
+    const log = execSync(`python3 -m pip install -r requirements.txt --target ./python_packages 2>&1`).toString();
     console.log("[Python Deps] Successfully installed python dependencies locally!");
+    fs.writeFileSync(path.join(__dirname, 'install.log'), log);
   } catch (error) {
-    console.error("[Python Deps] Failed to install python dependencies:", error.message);
+    const log = error.stdout ? error.stdout.toString() : error.message;
+    console.error("[Python Deps] Failed to install python dependencies:\n", log);
+    fs.writeFileSync(path.join(__dirname, 'install.log'), "ERROR:\n" + log);
   }
 } else {
   console.log("[Python Deps] Local python_packages directory already exists and is not empty.");
@@ -101,6 +104,7 @@ app.get('/api/debug-env', (req, res) => {
     'python3 --version',
     'which pip3',
     'pip3 --version',
+    'cat install.log || true',
     'ls -la python_packages || true',
     'python3 -c "import sys; sys.path.insert(0, \'./python_packages\'); import requests; print(requests.__file__)"'
   ];
