@@ -11,7 +11,32 @@ if not os.path.exists(ffmpeg_bin):
     ffmpeg_bin = "ffmpeg"
 
 # Enforce minimal fontconfig configuration to avoid huge system scans and memory OOM on Render
-os.environ["FONTCONFIG_FILE"] = os.path.join(workspace, "fonts.conf")
+fonts_conf_template = """<?xml version="1.0"?>
+<!DOCTYPE fontconfig SYSTEM "fonts.dtd">
+<fontconfig>
+  <dir>{fonts_dir}</dir>
+  <cachedir>/tmp/fc-cache</cachedir>
+  <config></config>
+  <match target="pattern">
+    <test qual="any" name="family">
+      <string>Arial</string>
+    </test>
+    <edit name="family" mode="assign" binding="same">
+      <string>Roboto-Bold</string>
+    </edit>
+  </match>
+</fontconfig>
+"""
+
+dynamic_fonts_conf = os.path.join(workspace, "fonts_dynamic.conf")
+try:
+    with open(dynamic_fonts_conf, "w", encoding="utf-8") as f:
+        f.write(fonts_conf_template.format(fonts_dir=os.path.join(workspace, "fonts")))
+    os.environ["FONTCONFIG_FILE"] = dynamic_fonts_conf
+    print(f"[Fonts Config] Dynamically generated config with absolute path at: {dynamic_fonts_conf}")
+except Exception as e:
+    print(f"[Fonts Config] Failed to generate dynamic config: {e}", file=sys.stderr)
+    os.environ["FONTCONFIG_FILE"] = os.path.join(workspace, "fonts.conf")
 
 def get_audio_duration(file_path):
     try:
