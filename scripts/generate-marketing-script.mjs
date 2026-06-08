@@ -122,7 +122,7 @@ async function main() {
   const latestMdPath = path.resolve(OUTPUT_DIR, 'marketing-script-latest.md');
   
   const mdContent = [
-    `# Ebook-Driven Marketing Script: ${selectedSection.title}`,
+    `# Ebook-Driven Marketing Script: ${scriptData.title ? scriptData.title.toUpperCase() : selectedSection.title.toUpperCase()}`,
     "",
     `- **Ebook Source Section:** [${selectedSection.title}](file://${EBOOK_PATH})`,
     `- **Model:** Gemini 3.1 Flash (via FreeLLMAPI)`,
@@ -207,34 +207,73 @@ async function main() {
   }
 
   // Convert and mix background audio
-  const bgMusicName = process.env.BG_MUSIC_NAME || 'bg-minimal-piano.wav';
-  let wavBgPath = path.resolve(__dirname, `../public/${bgMusicName}`);
+  const bgMusicName = process.env.BG_MUSIC_NAME || 'i was only temporary.m4a';
+  const rawBgPath = path.resolve(__dirname, `../${bgMusicName}`);
+  const latestMixedWavPath = path.resolve(OUTPUT_DIR, 'mixed-voiceover-latest.wav');
 
-  // Fallback to legacy/custom bg folder if the public track isn't found
-  if (!fs.existsSync(wavBgPath)) {
-    const m4aBgPath = path.resolve(__dirname, '../bg/i was only temporary.m4a');
-    const legacyWavBgPath = path.resolve(__dirname, '../bg/i was only temporary.wav');
-    if (fs.existsSync(m4aBgPath)) {
-      console.log(`\nFound legacy background audio: bg/i was only temporary.m4a`);
-      if (!fs.existsSync(legacyWavBgPath)) {
-        console.log("Converting background audio to compatible 24kHz Mono WAV format...");
+  let wavBgPath = null;
+
+  if (fs.existsSync(rawBgPath)) {
+    console.log(`\nFound background audio source in workspace root: ${rawBgPath}`);
+    if (bgMusicName.toLowerCase().endsWith('.wav')) {
+      wavBgPath = rawBgPath;
+    } else {
+      // Convert to WAV in the generated-audio folder
+      const safeWavName = bgMusicName.toLowerCase().replace(/[^a-z0-9]+/g, '-') + '.wav';
+      const convertedWavPath = path.resolve(OUTPUT_DIR, safeWavName);
+
+      if (!fs.existsSync(convertedWavPath)) {
+        console.log(`Converting "${bgMusicName}" to compatible 24kHz Mono WAV format...`);
+        let ffmpegBin = path.resolve(__dirname, '../node_modules/ffmpeg-static/ffmpeg');
+        if (!fs.existsSync(ffmpegBin)) {
+          ffmpegBin = 'ffmpeg';
+        }
         try {
-          execSync(`afconvert -f WAVE -d LEI16@24000 -c 1 "${m4aBgPath}" "${legacyWavBgPath}"`);
-          console.log("Successfully converted background audio.");
+          execSync(`"${ffmpegBin}" -y -i "${rawBgPath}" -ar 24000 -ac 1 "${convertedWavPath}"`);
+          console.log(`Successfully converted audio using ffmpeg: ${convertedWavPath}`);
         } catch (err) {
-          console.error("Failed to convert background audio using afconvert:", err.message);
+          console.error("Failed to convert background audio using ffmpeg:", err.message);
         }
       }
-      if (fs.existsSync(legacyWavBgPath)) {
-        wavBgPath = legacyWavBgPath;
+
+      if (fs.existsSync(convertedWavPath)) {
+        wavBgPath = convertedWavPath;
+      }
+    }
+  } else {
+    // Check in public/ folder
+    const publicBgPath = path.resolve(__dirname, `../public/${bgMusicName}`);
+    if (fs.existsSync(publicBgPath)) {
+      console.log(`\nFound background audio in public folder: ${publicBgPath}`);
+      wavBgPath = publicBgPath;
+    } else {
+      // Fallback legacy folder checks
+      const legacyM4aPath = path.resolve(__dirname, '../bg/i was only temporary.m4a');
+      const legacyWavBgPath = path.resolve(__dirname, '../bg/i was only temporary.wav');
+      if (fs.existsSync(legacyM4aPath)) {
+        console.log(`\nFound legacy background audio: bg/i was only temporary.m4a`);
+        if (!fs.existsSync(legacyWavBgPath)) {
+          console.log("Converting legacy background audio using ffmpeg...");
+          let ffmpegBin = path.resolve(__dirname, '../node_modules/ffmpeg-static/ffmpeg');
+          if (!fs.existsSync(ffmpegBin)) {
+            ffmpegBin = 'ffmpeg';
+          }
+          try {
+            execSync(`"${ffmpegBin}" -y -i "${legacyM4aPath}" -ar 24000 -ac 1 "${legacyWavBgPath}"`);
+            console.log("Successfully converted legacy background audio.");
+          } catch (err) {
+            console.error("Failed to convert legacy audio using ffmpeg:", err.message);
+          }
+        }
+        if (fs.existsSync(legacyWavBgPath)) {
+          wavBgPath = legacyWavBgPath;
+        }
       }
     }
   }
 
-  const latestMixedWavPath = path.resolve(OUTPUT_DIR, 'mixed-voiceover-latest.wav');
-
-  if (fs.existsSync(wavBgPath)) {
-    console.log(`\nUsing background music: ${wavBgPath}`);
+  if (wavBgPath && fs.existsSync(wavBgPath)) {
+    console.log(`Using background music for mixing: ${wavBgPath}`);
     console.log("Mixing background music with voiceover...");
     const mixedWavPath = path.resolve(OUTPUT_DIR, `mixed-voiceover-${safeTitle}.wav`);
     const mixScriptPath = path.resolve(__dirname, 'mix_wav_files.py');
@@ -249,7 +288,7 @@ async function main() {
       fs.copyFileSync(wavPath, latestMixedWavPath);
     }
   } else {
-    console.warn(`\nBackground music not found at ${wavBgPath} and no legacy fallback found. Skipping mixing.`);
+    console.warn(`\nBackground music not found. Skipping mixing.`);
     console.log("Copying unmixed voiceover to mixed-voiceover-latest.wav...");
     fs.copyFileSync(wavPath, latestMixedWavPath);
   }
@@ -327,6 +366,12 @@ async function generateMarketingScript(apiKey, section) {
   const systemPrompt = [
     "You create supportive, raw, and nurturing reels/TikTok scripts for a women's relationship-safety and self-respect guide.",
     "Write like a real sibling sharing a hard truth out of deep concern. Inhabit this voice fully. Speak with vulnerability and intense warmth. Avoid sounding like a powerful lecturer or aggressive speaker. You are hurting *for* the listener—let your voice show that vulnerability, as if you are holding back tears or reacting to the pain in real-time. Tension without warmth is scary; ground your tone in protective care.",
+    "CRITICAL CONTENT VARIATION RULES:",
+    "- Do NOT summarize the entire section context. Instead, select ONE highly specific boundary scenario, a single concrete rule, a specific phrase, or a single script template from the text context, and build the entire reel script around that single concept.",
+    "- Focus the entire hook, lesson, and voiceover around that single narrow concept to ensure high variety across runs.",
+    "CRITICAL TITLE RULES:",
+    "- The title field MUST be a short, punchy title (3-6 words, no emojis) specifically representing this script's sub-topic.",
+    "- Use a colon to separate the core concept from the subtitle (e.g., 'THE APOLOGY REFLEX: Stop Saying Sorry' or 'THE SCHEDULE STALL: Protect Your Time' or 'THE RESENTMENT CARD: Stop Over-giving'). Do NOT use the Part title or Part number.",
     "CRITICAL HOOK RULES:",
     "- The hook MUST stop the scroll in the first 3 seconds.",
     "- No greeting, no setup, no scene description, and no narrative context. Start the fire immediately.",
@@ -345,7 +390,7 @@ async function generateMarketingScript(apiKey, section) {
     "EMBRACE SILENCE, WARMTH & EMPATHY:",
     "- Focus on organic signs of empathy: include bracketed voice texture and breath cues directly in the voiceover text such as '[soft sigh]', '[voice cracks]', '[catch in throat]', '[tremble]', '[soft whisper]', or '[grounded with warmth]'. Every shift must have a clear motive driven by sibling empathy.",
     "- Insert '[silence]' or '[long pause]' after heavy statements so the realizations sit heavily in the air.",
-    "Return only compact valid JSON with these string fields: hook, lesson, pitch, performanceDirection, voiceover.",
+    "Return only compact valid JSON with these string fields: title, hook, lesson, pitch, performanceDirection, voiceover.",
     "Do not use markdown fences. Do not add commentary. Do not insert unescaped line breaks inside string values."
   ].join("\n");
 
@@ -354,6 +399,7 @@ async function generateMarketingScript(apiKey, section) {
     `Ebook Section Text Context:\n${section.content}`,
     "",
     "Create a script pack based on the ebook content.",
+    "title: dynamic short punchy title with a colon separating concept and subtitle representing this narrow script scenario.",
     "hook: scroll-stopping mind-reading hook line starting with '[soft whisper]', delivering a single raw, honest observation that makes the listener feel exposed (no greetings/scene setup).",
     "lesson: short value teaching lesson based directly on the book context, helping them recognize the situation.",
     "pitch: supportive transition to the guide, explaining that I spent a lot of time thinking about how to actually stop this and put together a guide with actual words for when she's not sure when to speak up, offered purely as support for when she's tired of feeling small or lacking the words to say. No sales pitch, no pricing.",
@@ -371,6 +417,7 @@ async function generateMarketingScript(apiKey, section) {
       model: "auto",
       temperature: 0.78,
       max_tokens: 2400,
+      response_format: { type: "json_object" },
       messages: [
         { role: "system", content: systemPrompt },
         { role: "user", content: userPrompt },
@@ -389,9 +436,15 @@ async function generateMarketingScript(apiKey, section) {
 }
 
 function parseGeneratedScript(content) {
-  const jsonText = extractJsonObject(content.trim());
-  const escaped = escapeControlCharsInsideJsonStrings(jsonText);
-  return JSON.parse(escaped);
+  try {
+    const jsonText = extractJsonObject(content.trim());
+    const escaped = escapeControlCharsInsideJsonStrings(jsonText);
+    return JSON.parse(escaped);
+  } catch (err) {
+    console.error("❌ Failed to parse JSON response from Gemini!");
+    console.error("Raw content received:\n", content);
+    throw err;
+  }
 }
 
 function extractJsonObject(value) {
