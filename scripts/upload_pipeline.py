@@ -308,13 +308,30 @@ def generate_female_targeted_caption(md_path, include_link=True, hashtags=None):
 
         # Formulate sister-targeted copy
         caption_parts = []
+        # PAST: the first caption line was 'Hey sis, read this: "{hook}" 💖'.
+        # ISSUE: the feed only shows the first ~1-2 lines before "... more"; a greeting
+        #        ("Hey sis, read this:") burned that prime space and pushed the actual
+        #        hook out of view — and the last 7 reels skipped 78-85% on weak openers.
+        # PRESENT: lead with the raw hook itself; greeting removed.
+        # RATIONALE: the hook is the scroll-stopper. Putting it in the first visible line
+        #            mirrors the in-video hook and gives the caption the same job as the reel.
         if hook:
-            caption_parts.append(f"Hey sis, read this: \"{hook}\" 💖")
+            caption_parts.append(f"\"{hook}\" 💖")
         else:
-            caption_parts.append("Hey sis, protecting your peace is not selfish—it is necessary. 💖")
+            caption_parts.append("Protecting your peace is not selfish — it is necessary. 💖")
 
         if lesson:
             caption_parts.append(lesson)
+
+        # PRESENT: a save cue + a soft reply prompt before the CTA.
+        # ISSUE: all 7 reels in the last batch got 0 comments and almost no saves because the
+        #        caption never invited either; saves are the strongest buyer signal in this niche.
+        # RATIONALE: one gentle, on-brand reply nudge (not "comment below" bait) + one save
+        #            reason lifts the two engagement signals Instagram weights for distribution.
+        caption_parts.append(
+            "Save this for the next time the guilt creeps in. 🔖\n"
+            "And tell me below — which one of you is this? 👇"
+        )
 
         # Standard female-support Call to Action (link-aware)
         caption_parts.append(cta_line)

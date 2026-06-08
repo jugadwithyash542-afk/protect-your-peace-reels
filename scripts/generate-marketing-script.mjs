@@ -101,6 +101,28 @@ const CLOSING_QUESTION_ANGLES = [
   "wonder aloud whether someone else needed to hear this too, and ask if that someone is her",
 ];
 
+// HOOK ANGLES: the *territory* the scroll-stopping first line should mine.
+// PAST: the hook rule only said "deliver a raw mind-reading observation" with no angle steer,
+//       so hooks ranged across every theme (chores/mental-load, body-anxiety, boundaries...).
+// ISSUE: the last 7 reels showed the boundary->guilt scenarios (saying no then apologising /
+//        over-explaining / replaying it) had by far the lowest skip rate and the only shares &
+//        saves, while the chore/"mental load" and "heart races" angles got skipped 78-85%.
+// PRESENT: a weighted seed list — boundary->guilt entries dominate, with a couple of adjacent
+//          angles kept in for variety — injected per run exactly like PITCH_ANGLES.
+// RATIONALE: skip rate is the #1 distribution lever; biasing the hook toward the proven
+//            low-skip territory lifts reach without hard-coding a single repeated line.
+const HOOK_ANGLES = [
+  "the second right after she set a boundary — when the apology came tumbling out unprompted",
+  "the over-explaining spiral: she answered 'no' and then kept justifying it nobody asked",
+  "saying yes before she even finished hearing the request, then resenting it all day",
+  "rehearsing how to say no for hours, then folding the instant they looked disappointed",
+  "the 'sorry' that slips out before she's even done anything wrong",
+  "apologising for taking up space — for the ask, the text, the simple no",
+  "replaying a tiny boundary she set, convinced she was the difficult one",
+  // adjacent angles kept for variety (used less often by virtue of being the minority):
+  "the quiet resentment of always being the one who notices and absorbs everything",
+];
+
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
 // Meta headings to exclude from parsing
@@ -481,6 +503,8 @@ async function generateMarketingScript(apiKey, section) {
   const pitchAngle = pick(PITCH_ANGLES);
   const bioCue = pick(BIO_CUES);
   const closingAngle = pick(CLOSING_QUESTION_ANGLES);
+  // Per-run hook territory, weighted toward the proven low-skip boundary->guilt angle.
+  const hookAngle = pick(HOOK_ANGLES);
 
   const systemPrompt = [
     "You create supportive, raw, and nurturing reels/TikTok scripts for a women's relationship-safety and self-respect guide.",
@@ -496,7 +520,11 @@ async function generateMarketingScript(apiKey, section) {
     "- The hook MUST stop the scroll in the first 3 seconds.",
     "- No greeting, no setup, no scene description, and no narrative context. Start the fire immediately.",
     "- Deliver a single, raw, honest observation that makes the listener feel exposed (vulnerable confession, not a script or lecture).",
-    "- The hook MUST start with a whisper cue: '[soft whisper]'. E.g., '[soft whisper] You checked the trash just to prove you weren't crazy.' or '[soft whisper] You hid the receipt because you couldn't face the argument.'",
+    // PRESENT: steer the hook into the proven low-skip territory for THIS run, without quoting it literally.
+    // RATIONALE: the boundary->guilt angle had the lowest skip rate and the only saves/shares in the last batch.
+    "- MINE THIS TERRITORY for the hook (write a fresh line around it, do NOT quote it): " + hookAngle + ".",
+    "- The hook MUST name the precise micro-moment AFTER she acts (the apology, the over-explaining, the replay) — that specific aftermath is what stops the scroll, not a general feeling.",
+    "- The hook MUST start with a whisper cue: '[soft whisper]'. E.g., '[soft whisper] You said no, then apologised five seconds later.' or '[soft whisper] You explained your whole reasoning to someone who never asked.'",
     "CRITICAL SUPPORT TRANSITION AND GUIDE REVELATION RULES:",
     "- Avoid a hard sales pitch. Keep the tone deeply nurturing, protecting, and completely non-commercial.",
     "- Do NOT treat the guide/offer like a separate chapter, pitch, or sales transaction. Instead, make the transition a gentle, seamless gesture of support.",
@@ -542,7 +570,7 @@ async function generateMarketingScript(apiKey, section) {
     "Ensure your JSON response contains exactly these fields:",
     "{",
     '  "title": "dynamic short punchy title with a colon separating concept and subtitle representing this narrow script scenario.",',
-    '  "hook": "scroll-stopping mind-reading hook line starting with \'[soft whisper]\', delivering a single raw, honest observation that makes the listener feel exposed (no greetings/scene setup).",',
+    `  "hook": "scroll-stopping mind-reading hook line starting with '[soft whisper]', built around this run's territory: \\"${hookAngle}\\". Name the precise micro-moment AFTER she acts (the apology, the over-explaining, the replay). One raw, exposing observation. No greetings/scene setup.",`,
     '  "lesson": "short value teaching lesson based directly on the book context, helping them recognize the situation.",',
     `  "pitch": "YOU write the supportive transition to the guide — do not copy a template. Build it around this run's angle: \\"${pitchAngle}\\", and point to the guide using this idea reworded naturally: \\"${bioCue}\\". Big-sis voice, offered purely as support. No sales pitch, no pricing. Never reuse the banned phrasings from the system rules.",`,
     `  "closingQuestion": "ONE soft, open-ended question that ENDS the reel. Validate her experience first, then ask if she has felt this too — a safe-space conversation opener (spirit of 'have you ever felt this way?'). Build it around: \\"${closingAngle}\\". Warm, short, no yes/no trap, no advice, no selling. This is the final beat.",`,
