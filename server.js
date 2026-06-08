@@ -208,6 +208,8 @@ app.all('/api/test-step', (req, res) => {
     cmd = `python3 scripts/render_captioned_video.py`;
   } else if (step === 'upload') {
     cmd = `python3 scripts/upload_pipeline.py`;
+  } else if (step === 'install_deps') {
+    cmd = `python3 -m pip install -r requirements.txt --target ./python_packages`;
   } else {
     return res.status(400).send('Invalid step');
   }
