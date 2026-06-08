@@ -7,6 +7,20 @@ import fs from 'fs';
 const __filename = fileURLToPath(import.meta.url);
 const __dirname = path.dirname(__filename);
 
+// Boot-time python dependency installation check
+const pythonPackagesDir = path.join(__dirname, 'python_packages');
+if (!fs.existsSync(pythonPackagesDir) || fs.readdirSync(pythonPackagesDir).length === 0) {
+  console.log("[Python Deps] Local python_packages directory is missing or empty. Installing...");
+  try {
+    execSync(`python3 -m pip install -r requirements.txt --target ./python_packages`, { stdio: 'inherit' });
+    console.log("[Python Deps] Successfully installed python dependencies locally!");
+  } catch (error) {
+    console.error("[Python Deps] Failed to install python dependencies:", error.message);
+  }
+} else {
+  console.log("[Python Deps] Local python_packages directory already exists and is not empty.");
+}
+
 // Environment variables loaded from .env automatically
 
 // Load environment variables from root .env manually
