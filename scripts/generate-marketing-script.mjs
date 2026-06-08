@@ -565,6 +565,12 @@ function escapeControlCharsInsideJsonStrings(value) {
 }
 
 async function ensureFreeLlmApiRunning() {
+  // If we are on Render, DO NOT spawn local LLM proxy!
+  if (process.env.RENDER === 'true') {
+    console.log(`[Proxy check] Running on Render. Skipping local FreeLLMAPI spawn to conserve memory.`);
+    return;
+  }
+
   // If API_BASE is a remote service (not localhost/127.0.0.1), we skip local spawning checks.
   if (!API_BASE.includes('127.0.0.1') && !API_BASE.includes('localhost')) {
     console.log(`[Proxy check] Using remote FreeLLMAPI base: ${API_BASE}`);

@@ -1,7 +1,7 @@
 import express from 'express';
 import path from 'path';
 import { fileURLToPath } from 'url';
-import { exec } from 'child_process';
+import { exec, spawn } from 'child_process';
 import fs from 'fs';
 
 const __filename = fileURLToPath(import.meta.url);
@@ -57,22 +57,44 @@ app.all('/api/generate-reel', (req, res) => {
   const query = req.query.query || req.body.query || 'random';
   console.log(`[Render Server] Generating reel with query: ${query}`);
 
-  // Run the generator, renderer, and upload pipeline scripts
+  // Run the generator, renderer, and upload pipeline scripts in a memory-bounded shell
   const cmd = `node scripts/generate-marketing-script.mjs "${query}" && python3 scripts/render_captioned_video.py && python3 scripts/upload_pipeline.py`;
   
-  exec(cmd, { cwd: __dirname }, (error, stdout, stderr) => {
-    if (error) {
-      console.error(`Error executing generation command: ${error.message}`);
-      console.error(stderr);
+  const [shell, args] = process.platform === 'win32' ? ['cmd.exe', ['/s', '/c', cmd]] : ['/bin/sh', ['-c', cmd]];
+  const child = spawn(shell, args, { cwd: __dirname });
+
+  let stdoutData = "";
+  let stderrData = "";
+
+  child.stdout.on('data', (data) => {
+    const text = data.toString();
+    process.stdout.write(text); // Pipe logs directly to Render console stream
+    stdoutData += text;
+    if (stdoutData.length > 50000) {
+      stdoutData = stdoutData.slice(-50000); // Limit buffer memory footprint to 50KB
+    }
+  });
+
+  child.stderr.on('data', (data) => {
+    const text = data.toString();
+    process.stderr.write(text); // Pipe error logs directly to Render console stream
+    stderrData += text;
+    if (stderrData.length > 50000) {
+      stderrData = stderrData.slice(-50000); // Limit buffer memory footprint to 50KB
+    }
+  });
+
+  child.on('close', (code) => {
+    if (code !== 0) {
+      console.error(`[Render Server] Command execution failed with exit code: ${code}`);
       return res.status(500).json({
         success: false,
-        error: error.message,
-        details: stderr
+        error: `Command failed with exit code ${code}`,
+        details: stderrData
       });
     }
 
-    console.log(`[Render Server] Reel generated successfully!`);
-    console.log(stdout);
+    console.log(`[Render Server] Reel generated and published successfully!`);
 
     // Verify output files exist
     const videoPath = 'generated-audio/rendered_reel_latest.mp4';
@@ -81,14 +103,14 @@ app.all('/api/generate-reel', (req, res) => {
         success: true,
         videoUrl: `/generated-audio/rendered_reel_latest.mp4`,
         scriptUrl: `/generated-audio/marketing-script-latest.md`,
-        stdout
+        stdout: stdoutData
       });
     } else {
       return res.status(500).json({
         success: false,
         error: 'Video file was not generated.',
-        stdout,
-        details: stderr
+        stdout: stdoutData,
+        details: stderrData
       });
     }
   });

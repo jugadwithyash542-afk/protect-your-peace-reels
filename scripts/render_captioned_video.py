@@ -302,23 +302,25 @@ def create_yoyo_loop_video(input_video_path, temp_reversed_path, temp_yoyo_path)
     print("Step A: Creating reversed segment of the video...")
     cmd_rev = [
         ffmpeg_bin, "-y",
+        "-threads", "1",
         "-i", input_video_path,
         "-vf", "reverse",
         "-an",
         temp_reversed_path
     ]
-    subprocess.run(cmd_rev, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    subprocess.run(cmd_rev, check=True)
     
     print("Step B: Stitching forward and reversed video together to make a seamless yo-yo loop...")
     cmd_concat = [
         ffmpeg_bin, "-y",
+        "-threads", "1",
         "-i", input_video_path,
         "-i", temp_reversed_path,
         "-filter_complex", "[0:v][1:v]concat=n=2:v=1:a=0[v]",
         "-map", "[v]",
         temp_yoyo_path
     ]
-    subprocess.run(cmd_concat, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+    subprocess.run(cmd_concat, check=True)
     print(f"Yo-yo seamless loop segment created at: {temp_yoyo_path}")
 
 def render_video(video_path, audio_path, ass_path, output_path, duration):
@@ -326,6 +328,7 @@ def render_video(video_path, audio_path, ass_path, output_path, duration):
     cmd = [
         ffmpeg_bin,
         "-y",
+        "-threads", "1",
         "-stream_loop", "-1",          # Loop the input video infinitely
         "-i", video_path,              # Input yo-yo looped video
         "-i", audio_path,              # Input audio (mixed voiceover)
@@ -341,7 +344,7 @@ def render_video(video_path, audio_path, ass_path, output_path, duration):
         output_path
     ]
     
-    subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, text=True, check=True)
+    subprocess.run(cmd, check=True)
     print(f"Successfully rendered video: {output_path}")
 
 def main():
