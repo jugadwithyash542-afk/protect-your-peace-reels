@@ -87,6 +87,33 @@ app.get('/api/list-files', (req, res) => {
   return res.json({ exists: true, files });
 });
 
+app.get('/api/debug-env', (req, res) => {
+  const expectedToken = process.env.API_KEY || process.env.FREELLM_API_KEY;
+  const token = req.query.apikey || req.query.apiKey;
+  if (!token || token !== expectedToken) {
+    return res.status(401).send('Unauthorized');
+  }
+
+  const commands = [
+    'which python3',
+    'python3 --version',
+    'which pip3',
+    'pip3 --version',
+    'pip3 list'
+  ];
+  let output = "";
+  for (const cmd of commands) {
+    try {
+      const stdout = execSync(cmd).toString();
+      output += `=== ${cmd} ===\n${stdout}\n\n`;
+    } catch (err) {
+      output += `=== ${cmd} ===\nERROR: ${err.message}\nStderr: ${err.stderr ? err.stderr.toString() : ''}\n\n`;
+    }
+  }
+  res.setHeader('Content-Type', 'text/plain');
+  res.send(output);
+});
+
 // API endpoint to generate and render the reel (supports both GET and POST)
 app.all('/api/generate-reel', (req, res) => {
   // Support both headers (Bearer) and query parameters (apikey)
