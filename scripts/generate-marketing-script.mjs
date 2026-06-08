@@ -390,15 +390,15 @@ async function generateMarketingScript(apiKey, section) {
     "EMBRACE SILENCE, WARMTH & EMPATHY:",
     "- Focus on organic signs of empathy: include bracketed voice texture and breath cues directly in the voiceover text such as '[soft sigh]', '[voice cracks]', '[catch in throat]', '[tremble]', '[soft whisper]', or '[grounded with warmth]'. Every shift must have a clear motive driven by sibling empathy.",
     "- Insert '[silence]' or '[long pause]' after heavy statements so the realizations sit heavily in the air.",
-    "Return only compact valid JSON with these string fields: title, hook, lesson, pitch, performanceDirection, voiceover.",
-    "Do not use markdown fences. Do not add commentary. Do not insert unescaped line breaks inside string values."
+    "Return only compact valid JSON representing EXACTLY ONE script object (with keys: title, hook, lesson, pitch, performanceDirection, voiceover). Do NOT wrap it in a list or array. Do NOT output multiple script variants.",
+    "Do not use markdown fences. Do not add commentary. Do not insert unescaped line breaks inside string values. Double quotes inside string values must be escaped as \\\"."
   ].join("\n");
 
   const userPrompt = [
     `Section Title: ${section.title}`,
     `Ebook Section Text Context:\n${section.content}`,
     "",
-    "Create a script pack based on the ebook content.",
+    "Create EXACTLY ONE highly focused marketing script object based on the ebook content. Do NOT create multiple variants, lists, or a script pack.",
     "title: dynamic short punchy title with a colon separating concept and subtitle representing this narrow script scenario.",
     "hook: scroll-stopping mind-reading hook line starting with '[soft whisper]', delivering a single raw, honest observation that makes the listener feel exposed (no greetings/scene setup).",
     "lesson: short value teaching lesson based directly on the book context, helping them recognize the situation.",
@@ -436,26 +436,116 @@ async function generateMarketingScript(apiKey, section) {
 }
 
 function parseGeneratedScript(content) {
+  let jsonText = "";
+  let isArray = false;
+
   try {
-    const jsonText = extractJsonObject(content.trim());
-    const escaped = escapeControlCharsInsideJsonStrings(jsonText);
-    return JSON.parse(escaped);
+    const extracted = extractJsonSubstring(content.trim());
+    jsonText = extracted.jsonText;
+    isArray = extracted.isArray;
   } catch (err) {
-    console.error("❌ Failed to parse JSON response from Gemini!");
+    console.warn("⚠️ Bound extraction failed. Attempting direct parsing...");
+    jsonText = content.trim();
+  }
+
+  // Try parsing using standard JSON.parse first
+  try {
+    const escaped = escapeControlCharsInsideJsonStrings(jsonText);
+    let parsed = JSON.parse(escaped);
+    if (Array.isArray(parsed)) {
+      console.log("ℹ️ JSON parsed successfully as an array. Extracting the first script object...");
+      parsed = parsed[0];
+    }
+    if (parsed && typeof parsed === 'object') {
+      return parsed;
+    }
+  } catch (err) {
+    console.warn("⚠️ JSON.parse failed. Activating self-healing regex parser...");
+  }
+
+  // Self-healing fallback: extract fields directly using regexes
+  try {
+    console.log("🩹 Running self-healing regex field extraction...");
+    const fields = ["title", "hook", "lesson", "pitch", "performanceDirection", "voiceover"];
+    const result = {};
+
+    // If it is a list of objects, we target the first object block inside the text
+    let targetBlock = jsonText;
+    if (isArray) {
+      const firstObjStart = jsonText.indexOf("{");
+      const firstObjEnd = jsonText.indexOf("}");
+      if (firstObjStart !== -1 && firstObjEnd !== -1 && firstObjEnd > firstObjStart) {
+        targetBlock = jsonText.slice(firstObjStart, firstObjEnd + 1);
+      }
+    }
+
+    for (const field of fields) {
+      const val = extractFieldRegex(targetBlock, field);
+      if (val !== null) {
+        result[field] = val;
+      } else if (field === 'title') {
+        result[field] = "PROTECT YOUR PEACE"; // Default placeholder
+      } else {
+        throw new Error(`Self-healing parser failed: Missing required field "${field}".`);
+      }
+    }
+
+    console.log("🎉 Self-healing parser successfully recovered all fields!");
+    return result;
+  } catch (healingErr) {
+    console.error("❌ Both standard JSON.parse and self-healing regex extraction failed.");
     console.error("Raw content received:\n", content);
-    throw err;
+    throw healingErr;
   }
 }
 
-function extractJsonObject(value) {
+function extractJsonSubstring(value) {
   const fenced = value.match(/```(?:json)?\s*([\s\S]*?)```/i);
   const source = fenced?.[1]?.trim() || value;
-  const start = source.indexOf("{");
-  const end = source.lastIndexOf("}");
-  if (start === -1 || end === -1 || end <= start) {
-    throw new Error(`Invalid JSON format.`);
+
+  const startObj = source.indexOf("{");
+  const startArr = source.indexOf("[");
+  const endObj = source.lastIndexOf("}");
+  const endArr = source.lastIndexOf("]");
+
+  let isArray = false;
+  let start = -1;
+  let end = -1;
+
+  if (startArr !== -1 && (startObj === -1 || startArr < startObj)) {
+    isArray = true;
+    start = startArr;
+    end = endArr;
+  } else {
+    isArray = false;
+    start = startObj;
+    end = endObj;
   }
-  return source.slice(start, end + 1);
+
+  if (start === -1 || end === -1 || end <= start) {
+    throw new Error(`Could not find any JSON bounds in response.`);
+  }
+
+  return {
+    jsonText: source.slice(start, end + 1),
+    isArray
+  };
+}
+
+function extractFieldRegex(jsonText, fieldName) {
+  const regex = new RegExp(`"${fieldName}"\\s*:\\s*"([\\s\\S]*?)"(?=\\s*(?:,|}|]|$))`, 'i');
+  const match = jsonText.match(regex);
+  if (match) {
+    let val = match[1];
+    val = val
+      .replace(/\\n/g, '\n')
+      .replace(/\\r/g, '\r')
+      .replace(/\\t/g, '\t')
+      .replace(/\\"/g, '"')
+      .replace(/\\\\/g, '\\');
+    return val;
+  }
+  return null;
 }
 
 function escapeControlCharsInsideJsonStrings(value) {
