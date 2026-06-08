@@ -5,6 +5,28 @@ import { fileURLToPath } from 'url';
 import { execSync, spawn } from 'child_process';
 
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
+
+// Load environment variables from root .env manually
+const dotenvPath = path.resolve(__dirname, '../.env');
+if (fs.existsSync(dotenvPath)) {
+  const dotenvContent = fs.readFileSync(dotenvPath, 'utf-8');
+  for (const line of dotenvContent.split('\n')) {
+    const trimmed = line.trim();
+    if (!trimmed || trimmed.startsWith('#')) continue;
+    const match = trimmed.match(/^([^=]+)=(.*)$/);
+    if (match) {
+      const key = match[1].trim();
+      let val = match[2].trim();
+      if ((val.startsWith('"') && val.endsWith('"')) || (val.startsWith("'") && val.endsWith("'"))) {
+        val = val.slice(1, -1);
+      }
+      if (!process.env[key]) {
+        process.env[key] = val;
+      }
+    }
+  }
+}
+
 const API_BASE = process.env.FREELLM_API_BASE ?? "http://127.0.0.1:3001";
 
 const EBOOK_PATH = process.env.EBOOK_PATH ?? path.resolve(__dirname, '../Doc/guide.md');
@@ -185,35 +207,51 @@ async function main() {
   }
 
   // Convert and mix background audio
-  const m4aBgPath = path.resolve(__dirname, '../bg/i was only temporary.m4a');
-  const wavBgPath = path.resolve(__dirname, '../bg/i was only temporary.wav');
+  const bgMusicName = process.env.BG_MUSIC_NAME || 'bg-minimal-piano.wav';
+  let wavBgPath = path.resolve(__dirname, `../public/${bgMusicName}`);
 
-  if (fs.existsSync(m4aBgPath)) {
-    console.log("\nFound background audio: bg/i was only temporary.m4a");
-    if (!fs.existsSync(wavBgPath)) {
-      console.log("Converting background audio to compatible 24kHz Mono WAV format...");
-      try {
-        execSync(`afconvert -f WAVE -d LEI16@24000 -c 1 "${m4aBgPath}" "${wavBgPath}"`);
-        console.log("Successfully converted background audio.");
-      } catch (err) {
-        console.error("Failed to convert background audio using afconvert:", err.message);
+  // Fallback to legacy/custom bg folder if the public track isn't found
+  if (!fs.existsSync(wavBgPath)) {
+    const m4aBgPath = path.resolve(__dirname, '../bg/i was only temporary.m4a');
+    const legacyWavBgPath = path.resolve(__dirname, '../bg/i was only temporary.wav');
+    if (fs.existsSync(m4aBgPath)) {
+      console.log(`\nFound legacy background audio: bg/i was only temporary.m4a`);
+      if (!fs.existsSync(legacyWavBgPath)) {
+        console.log("Converting background audio to compatible 24kHz Mono WAV format...");
+        try {
+          execSync(`afconvert -f WAVE -d LEI16@24000 -c 1 "${m4aBgPath}" "${legacyWavBgPath}"`);
+          console.log("Successfully converted background audio.");
+        } catch (err) {
+          console.error("Failed to convert background audio using afconvert:", err.message);
+        }
+      }
+      if (fs.existsSync(legacyWavBgPath)) {
+        wavBgPath = legacyWavBgPath;
       }
     }
+  }
 
-    if (fs.existsSync(wavBgPath)) {
-      console.log("Mixing background music with voiceover...");
-      const mixedWavPath = path.resolve(OUTPUT_DIR, `mixed-voiceover-${safeTitle}.wav`);
-      const latestMixedWavPath = path.resolve(OUTPUT_DIR, 'mixed-voiceover-latest.wav');
-      const mixScriptPath = path.resolve(__dirname, 'mix_wav_files.py');
-      try {
-        execSync(`python3 "${mixScriptPath}" "${wavPath}" "${wavBgPath}" "${mixedWavPath}" 0.15`);
-        fs.copyFileSync(mixedWavPath, latestMixedWavPath);
-        console.log(`Saved mixed audio to: ${mixedWavPath}`);
-        console.log(`Saved mixed shortcut to: ${latestMixedWavPath}`);
-      } catch (err) {
-        console.error("Failed to mix audio files:", err.message);
-      }
+  const latestMixedWavPath = path.resolve(OUTPUT_DIR, 'mixed-voiceover-latest.wav');
+
+  if (fs.existsSync(wavBgPath)) {
+    console.log(`\nUsing background music: ${wavBgPath}`);
+    console.log("Mixing background music with voiceover...");
+    const mixedWavPath = path.resolve(OUTPUT_DIR, `mixed-voiceover-${safeTitle}.wav`);
+    const mixScriptPath = path.resolve(__dirname, 'mix_wav_files.py');
+    try {
+      execSync(`python3 "${mixScriptPath}" "${wavPath}" "${wavBgPath}" "${mixedWavPath}" 0.15`);
+      fs.copyFileSync(mixedWavPath, latestMixedWavPath);
+      console.log(`Saved mixed audio to: ${mixedWavPath}`);
+      console.log(`Saved mixed shortcut to: ${latestMixedWavPath}`);
+    } catch (err) {
+      console.error("Failed to mix audio files:", err.message);
+      console.log("Falling back: Copying unmixed voiceover to mixed-voiceover-latest.wav...");
+      fs.copyFileSync(wavPath, latestMixedWavPath);
     }
+  } else {
+    console.warn(`\nBackground music not found at ${wavBgPath} and no legacy fallback found. Skipping mixing.`);
+    console.log("Copying unmixed voiceover to mixed-voiceover-latest.wav...");
+    fs.copyFileSync(wavPath, latestMixedWavPath);
   }
 }
 
