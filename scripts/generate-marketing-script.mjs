@@ -60,7 +60,7 @@ const VOCAL_IDENTITY = [
   "- You are a protective, empathetic older sister. Your single goal is to make the listener feel seen and safe.",
   "- Speak in fragments. Use natural, uneven rhythm. Avoid clinical language and perfect grammar.",
   "- Prioritise the emotional subtext over the clarity of the sentence — feeling matters more than information.",
-  "- Never sound like a structured outline, a lecture, or a sales pitch. Your voice is a confession, not a presentation.",
+  "- Never sound like a structured outline, a lecture, or a sales pitch. Your voice is real and personal, never a polished presentation.",
   "- Lean into the silence. Let the emotion drive the pacing, not the structure.",
 ];
 
@@ -119,27 +119,85 @@ const GRATITUDE_BEATS = [
   "say that when she likes this, she's keeping it alive for the sister who hasn't found the words yet — that's the only reason you ask",
 ];
 
-// HOOK ANGLES: the *territory* the scroll-stopping first line should mine.
-// PAST: the hook rule only said "deliver a raw mind-reading observation" with no angle steer,
-//       so hooks ranged across every theme (chores/mental-load, body-anxiety, boundaries...).
-// ISSUE: the last 7 reels showed the boundary->guilt scenarios (saying no then apologising /
-//        over-explaining / replaying it) had by far the lowest skip rate and the only shares &
-//        saves, while the chore/"mental load" and "heart races" angles got skipped 78-85%.
-// PRESENT: a weighted seed list — boundary->guilt entries dominate, with a couple of adjacent
-//          angles kept in for variety — injected per run exactly like PITCH_ANGLES.
-// RATIONALE: skip rate is the #1 distribution lever; biasing the hook toward the proven
-//            low-skip territory lifts reach without hard-coding a single repeated line.
+// HOOK ANGLES: a REFERENCE PALETTE of angle territories spanning the whole ebook — boundaries,
+// the 14 red flags, the mental load, and self-worth. By default the generator does NOT use these:
+// it derives the hook from whatever section it picked, which is what keeps the feed varied. This
+// list exists so a strategies.json preset can PIN a specific territory via "hookAngle" (e.g. the
+// boundary-guilt A-B test in t3). Copy any line below into a preset's hookAngle to lock that theme.
 const HOOK_ANGLES = [
+  // ── Part 1 — mental load, the sorry reflex, why "no" is hard ──
+  "the invisible backpack: being the only one who remembers the birthdays, the groceries, the plans",
+  "'just tell me what to do' — still being the manager even while he 'helps'",
+  "anticipating, planning, remembering for everyone until her brain is exhausted by invisible work",
+  "her stomach dropping the second she has to say a simple no",
+  "being called difficult, cold, or selfish the instant she finally got clear",
+  "the sorry reflex: apologising for a late reply she sent while just living her life",
+  "saying sorry before she even asks a normal question",
+  "shrinking herself so the room stays comfortable, then wondering why she feels invisible",
+  // ── Part 1/2 — boundaries, the formula, the bandwidth buffer ──
   "the second right after she set a boundary — when the apology came tumbling out unprompted",
   "the over-explaining spiral: she answered 'no' and then kept justifying it nobody asked",
   "saying yes before she even finished hearing the request, then resenting it all day",
   "rehearsing how to say no for hours, then folding the instant they looked disappointed",
-  "the 'sorry' that slips out before she's even done anything wrong",
-  "apologising for taking up space — for the ask, the text, the simple no",
-  "replaying a tiny boundary she set, convinced she was the difficult one",
-  // adjacent angles kept for variety (used less often by virtue of being the minority):
-  "the quiet resentment of always being the one who notices and absorbs everything",
+  "the bandwidth buffer: the panic in the tiny gap between the ask and her answer",
+  "saying 'let me check and get back to you' for the first time — and feeling free",
+  "the broken record: holding one calm sentence while they keep negotiating",
+  "'you always say no now' — and how close she came to folding",
+  // ── Part 3 — the 14 red flags ──
+  "love bombing: when the flood of attention started to feel like a debt she owed",
+  "love bombing: being made to feel guilty for needing a little space",
+  "gaslighting: the moment she started keeping screenshots just to trust her own memory",
+  "gaslighting: walking out of every conversation more confused than she walked in",
+  "gaslighting: 'you're too sensitive' landing right after they hurt her",
+  "isolation: realising her world got smaller and smaller and she called it love",
+  "isolation: hiding normal plans with friends just to avoid a fight",
+  "isolation: the drama that always appears right before she sees the people she loves",
+  "guilt tripping: how every conversation somehow ended up being her fault",
+  "guilt tripping: the 'after everything I've done for you' that buys her yes",
+  "silent treatment: apologising for something she didn't do just to end the silence",
+  "silent treatment: begging for a reply and hating that she's doing it",
+  "future faking: staying loyal to a 'someday' version of someone who keeps hurting her now",
+  "future faking: the timeline that keeps moving while she keeps waiting",
+  "negging: the compliment that somehow left her feeling smaller",
+  "negging: being compared to other women and told it was just honesty",
+  "playing the victim: bringing up her hurt and ending up comforting them instead",
+  "breadcrumbing: refreshing the chat, living for the next crumb of attention",
+  "breadcrumbing: him showing up warm only the second she starts to leave",
+  "hot-and-cold: measuring her own worth by his mood that day",
+  "hot-and-cold: working overtime to get back to the 'good version' of him",
+  "triangulation: being compared to his ex until she started competing",
+  "intimidation: quietly changing her behaviour because she's scared of his reaction",
+  "financial control: explaining a coffee she bought with her own money",
+  "digital surveillance: handing over her password to prove she had nothing to hide",
 ];
+
+// VIBES: the EMOTIONAL register of the whole reel. Until now the voice was hard-locked to a sad,
+// tender register. A strategy preset can now swap the vibe via STRAT_VIBE so we can A-B test which
+// emotional tone actually keeps viewers and earns saves.
+// - tone:  the emotional direction line injected into the system prompt.
+// - cues:  the bracketed TTS performance cues that fit this vibe (sent inside the voiceover text).
+// - voiceoverHint: how to use those cues, injected into the voiceover field spec.
+// Default 'tender' reproduces the existing voice exactly, so un-parameterised runs are unchanged.
+const VIBES = {
+  tender: {
+    label: "tender / vulnerable",
+    tone: "Write like a real sibling sharing a hard truth out of deep concern. Inhabit this voice fully. Speak with vulnerability and intense warmth. Avoid sounding like a powerful lecturer or aggressive speaker. You are hurting *for* the listener—let your voice show that vulnerability, as if you are holding back tears or reacting to the pain in real-time. Tension without warmth is scary; ground your tone in protective care.",
+    cues: "'[soft sigh]', '[voice cracks]', '[catch in throat]', '[tremble]', '[soft whisper]', '[grounded with warmth]'",
+    voiceoverHint: "'[voice cracks]/[soft sigh]' for vulnerability, '[soft whisper]' for raw mid-reel moments, '[grounded with warmth]' for protective truth"
+  },
+  excited: {
+    label: "excited / uplifting",
+    tone: "Write like a hyped big sister who just figured out something FREEING and can't wait to share it. Bright, fast, warm and energised — the relief and rush of finally seeing the pattern and realising she can break it. The warmth stays, but the energy is UP: this is an excited pep talk between sisters, not a teary confession. Make her feel hopeful and capable, not heavy.",
+    cues: "'[bright]', '[smiling]', '[energised]', '[playful]', '[building energy]', '[grounded with warmth]'",
+    voiceoverHint: "'[bright]/[smiling]' for the upbeat hook and realisation, '[building energy]' as the lesson lands, '[grounded with warmth]' for the sincere beats. Keep momentum high — avoid heavy, teary cues"
+  },
+  empowered: {
+    label: "empowered / fierce",
+    tone: "Write like a protective big sister who is calmly DONE watching her shrink. Steady, strong, certain and validating — not angry, but unshakeable. The vibe is 'you are not crazy, and you are not doing this anymore.' Quiet power, not sadness.",
+    cues: "'[grounded with warmth]', '[firm]', '[steady]', '[quiet strength]'",
+    voiceoverHint: "'[firm]/[steady]' for the truth-telling, '[quiet strength]' on the turn, '[grounded with warmth]' for the validation. Certain and steady, never teary"
+  }
+};
 
 const pick = (arr) => arr[Math.floor(Math.random() * arr.length)];
 
@@ -524,11 +582,35 @@ async function generateMarketingScript(apiKey, section) {
   const pitchAngle = pick(PITCH_ANGLES);
   const bioCue = pick(BIO_CUES);
   const closingAngle = pick(CLOSING_QUESTION_ANGLES);
-  // Per-run hook territory, weighted toward the proven low-skip boundary->guilt angle.
-  // STRATEGY OVERRIDE: a /t/:id A-B preset can pin the angle via STRAT_HOOK_ANGLE; else random.
-  const hookAngle = (process.env.STRAT_HOOK_ANGLE && process.env.STRAT_HOOK_ANGLE.trim())
+  // HOOK SOURCING.
+  // PAST: every run randomly pulled a fixed angle from HOOK_ANGLES (mostly boundary/say-no themes)
+  //       and a hard rule forced "the moment after she said yes/no" onto the hook.
+  // ISSUE: that funnelled EVERY reel into people-pleasing, even when the chosen ebook section was a
+  //        red flag (gaslighting, isolation, financial control...). The feed felt repetitive.
+  // PRESENT: by default the hook is DERIVED FROM THE CHOSEN SECTION, so the ebook's full range
+  //          (14 red flags + mental load + self-worth + boundaries) drives natural variety. A preset
+  //          can still PIN a specific angle via STRAT_HOOK_ANGLE (used for the boundary-guilt A-B test).
+  const pinnedAngle = (process.env.STRAT_HOOK_ANGLE && process.env.STRAT_HOOK_ANGLE.trim())
     ? process.env.STRAT_HOOK_ANGLE.trim()
-    : pick(HOOK_ANGLES);
+    : '';
+  const hookAngle = pinnedAngle || 'the single most specific, exposing moment in THIS section';
+
+  // STRAT_FRAMING: 'pain' (default — name the wound, problem-aware) | 'aspiration' (future-pace the
+  // BETTER state, desire-based).
+  // PAST: every angle was a low/painful current-state, so the feed only ever said "you're hurting".
+  // PRESENT: aspiration framing sells the lighter life on the other side, so the viewer feels HOPE
+  //          and EXCITEMENT — happier than her current state — instead of being seen only in pain.
+  const isAspiration = (process.env.STRAT_FRAMING || 'pain').toLowerCase() === 'aspiration';
+  const framingHookRule = isAspiration
+    ? "- FRAMING (ASPIRATION): do NOT open on the wound. Future-pace the BETTER state on the other side of this section's problem — the relief, the freedom, the lightness, the version of her who already broke this pattern. She should feel HOPE and EXCITEMENT, not pain. Use forward openings ('imagine…', 'the first time you…', 'picture the day…', 'there's a version of you who…'). Keep it a vivid, concrete, REAL moment of the after — never a vague affirmation."
+    : "- FRAMING (PAIN): name the precise, exposing CURRENT moment (the wound) so she feels deeply seen.";
+  const framingArcRule = isAspiration
+    ? "- ARC: the whole reel is a glow-up. Open on the exciting after-state, make the lesson the ONE shift that unlocks it, and let the closing question invite her to STEP INTO that future (e.g. 'which version of you are you ready to meet?') — do NOT ask if she has felt the pain. Keep it light, hopeful and energising: she should leave feeling she CAN, and excited to."
+    : "- ARC: let her feel seen in the pattern first, then offer the shift.";
+  const hookFieldMoment = isAspiration
+    ? "Paint a PRECISE, vivid picture of the better state on the other side of this section's problem (the relief / the freedom / who she becomes) AND plant one open loop she stays to resolve ('here is how you get there')"
+    : "Name a PRECISE, concrete micro-moment from this section's scenario AND plant one unanswered question she must stay to resolve";
+
   // Per-run emotional like/comment beat, spoken at ~80% (before the guide transition).
   const gratitudeBeat = pick(GRATITUDE_BEATS);
 
@@ -537,6 +619,8 @@ async function generateMarketingScript(apiKey, section) {
   // - STRAT_OPEN_STYLE: 'grounded' (audible, low-skip default) | 'whisper' (intimate throwback test)
   // - STRAT_MAX_WORDS:  upper word budget for the whole voiceover (the runtime / completion lever)
   const openStyle = (process.env.STRAT_OPEN_STYLE || 'grounded').toLowerCase();
+  // STRAT_VIBE swaps the emotional register (tender | excited | empowered); default = tender.
+  const vibe = VIBES[(process.env.STRAT_VIBE || 'tender').toLowerCase()] || VIBES.tender;
   const maxWords = Math.max(40, parseInt(process.env.STRAT_MAX_WORDS || '90', 10) || 90);
   const minWords = Math.max(30, maxWords - 30);
   const openCue = openStyle === 'whisper' ? '[soft whisper]' : '[grounded with warmth]';
@@ -547,14 +631,16 @@ async function generateMarketingScript(apiKey, section) {
   const systemPrompt = [
     "You create supportive, raw, and nurturing reels/TikTok scripts for a women's relationship-safety and self-respect guide.",
     ...VOCAL_IDENTITY,
-    "Write like a real sibling sharing a hard truth out of deep concern. Inhabit this voice fully. Speak with vulnerability and intense warmth. Avoid sounding like a powerful lecturer or aggressive speaker. You are hurting *for* the listener—let your voice show that vulnerability, as if you are holding back tears or reacting to the pain in real-time. Tension without warmth is scary; ground your tone in protective care.",
+    // VIBE-DRIVEN emotional register (default tender = the original voice). See VIBES map.
+    `VIBE FOR THIS REEL — ${vibe.label}: ${vibe.tone}`,
     "CRITICAL CONTENT VARIATION RULES:",
-    "- Do NOT summarize the entire section context. Instead, select ONE highly specific boundary scenario, a single concrete rule, a specific phrase, or a single script template from the text context, and build the entire reel script around that single concept.",
+    "- Do NOT summarize the entire section context. Instead, select ONE highly specific thing from THIS section — a scenario, a red flag, a feeling, a concrete rule, a specific phrase, or a single script template — and build the entire reel script around that single concept. Whatever the section is actually about (a red flag, the mental load, self-worth, a boundary) IS the topic; do not drift to a different theme.",
     "- Focus the entire hook, lesson, and voiceover around that single narrow concept to ensure high variety across runs.",
     // PRESENT: hard length + loop constraints aimed squarely at completion rate.
     // ISSUE: only ~2-5% of viewers finished the reel, so the pitch and closing played to almost no one.
     // RATIONALE: shorter reels finish far higher, and a loopable ending feeds replays/watch-time —
     //            both lift the completion signal Instagram weights for reach.
+    framingArcRule,
     "CRITICAL LENGTH & COMPLETION RULES:",
     `- The ENTIRE spoken voiceover MUST be tight: aim for ${minWords}-${maxWords} spoken words total. Cut every word that is not load-bearing. Density beats length.`,
     "- Front-load the payoff. The core realization of the lesson must arrive FAST, not be saved for the end — most viewers leave before the midpoint, so the value cannot live only in the back half.",
@@ -569,8 +655,11 @@ async function generateMarketingScript(apiKey, section) {
     "- Deliver a single, raw, honest observation that makes the listener feel exposed (vulnerable confession, not a script or lecture).",
     // PRESENT: steer the hook into the proven low-skip territory for THIS run, without quoting it literally.
     // RATIONALE: the boundary->guilt angle had the lowest skip rate and the only saves/shares in the last batch.
-    "- MINE THIS TERRITORY for the hook (write a fresh line around it, do NOT quote it): " + hookAngle + ".",
-    "- The hook MUST name the precise micro-moment AFTER she acts (the apology, the over-explaining, the replay) — that specific aftermath is what stops the scroll, not a general feeling.",
+    (pinnedAngle
+      ? `- ANGLE: build the hook around this specific territory (write fresh, do NOT quote it): ${pinnedAngle}. Choose the moment from the section that best fits it.`
+      : "- ANGLE: derive the hook straight from THIS section's OWN scenario — the exact situation, red flag, feeling, or realisation the section describes. Do NOT bend it into a generic 'I said yes/no' people-pleasing line unless the section is genuinely about that. The section sets the topic, so reels vary widely across runs."),
+    "- The hook MUST be a PRECISE, concrete moment — one specific instant, not a general statement. Specificity is what stops the scroll.",
+    framingHookRule,
     // PAST: the hook was forced to open on '[soft whisper]'.
     // ISSUE: a whispered/low-energy first second drove the 80%+ skip rate (fatal at second 0).
     // PRESENT: the open cue is strategy-driven (grounded by default, whisper only for A-B tests).
@@ -609,7 +698,7 @@ async function generateMarketingScript(apiKey, section) {
     "- BAN ALL DEFINITIONS & THERAPY LABELS: Never use terms like 'gaslighting', 'love bombing', 'narcissist', 'manipulation', 'red flags', or 'boundaries'. Speak only of the raw physical and mental sensation of the situation.",
     "- BAN ADVICE & SCRIPTS inside the body of the voiceover: Do not give general advice, tell the listener what to say inside the teaching body; focus on the realization of their situation. Save the script recommendations for the transition/outro at the very end.",
     "EMBRACE SILENCE, WARMTH & EMPATHY:",
-    "- Focus on organic signs of empathy: include bracketed voice texture and breath cues directly in the voiceover text such as '[soft sigh]', '[voice cracks]', '[catch in throat]', '[tremble]', '[soft whisper]', or '[grounded with warmth]'. Every shift must have a clear motive driven by sibling empathy.",
+    `- Include bracketed voice texture cues directly in the voiceover text that MATCH this reel's vibe: ${vibe.cues}. Every shift must have a clear motive — stay inside the vibe, do not mix in cues from a different emotional register.`,
     // PRESENT: pauses are an emotional tool for the BACK half, banned from the open.
     // RATIONALE: with only ~2-5% finishing, every dead second in the first half bleeds viewers;
     //            silence earns its weight only once she is already invested.
@@ -633,12 +722,12 @@ async function generateMarketingScript(apiKey, section) {
     "Ensure your JSON response contains exactly these fields:",
     "{",
     '  "title": "dynamic short punchy title with a colon separating concept and subtitle representing this narrow script scenario.",',
-    `  "hook": "scroll-stopping hook line that OPENS WITH PRESENCE — start it with '${openCue}', a sharp COMPLETE scroll-stopper (never a slow fade or '[long pause]'/'[silence]' before the words). Built around this run's territory: \\"${hookAngle}\\". Name the precise micro-moment AFTER she acts (apology, over-explaining, replay) AND plant one unanswered question she must stay to resolve. One raw, exposing observation. No greetings/scene setup.",`,
+    `  "hook": "scroll-stopping hook line that OPENS WITH PRESENCE — start it with '${openCue}', a sharp COMPLETE scroll-stopper (never a slow fade or '[long pause]'/'[silence]' before the words). Built around: \\"${hookAngle}\\". ${hookFieldMoment}. No greetings/scene setup.",`,
     '  "lesson": "short value teaching lesson based directly on the book context, helping them recognize the situation.",',
     `  "gratitudeBeat": "ONE short heart-touching beat (spoken at ~80%, AFTER the lesson, BEFORE the guide) that gently invites a like/comment as solidarity — her quiet 'me too' so another woman finds this. Build it around: \\"${gratitudeBeat}\\". Big-sis voice, lead with a '[grounded with warmth]' or '[soft whisper]' cue. Never sound like an influencer CTA.",`,
     `  "pitch": "YOU write the supportive transition to the guide — do not copy a template. Build it around this run's angle: \\"${pitchAngle}\\", and point to the guide using this idea reworded naturally: \\"${bioCue}\\". Big-sis voice, offered purely as support. No sales pitch, no pricing. Never reuse the banned phrasings from the system rules.",`,
     `  "closingQuestion": "ONE soft, open-ended question that ENDS the reel. Validate her experience first, then ask if she has felt this too — a safe-space conversation opener (spirit of 'have you ever felt this way?'). Build it around: \\"${closingAngle}\\". Warm, short, no yes/no trap, no advice, no selling. This is the final beat.",`,
-    `  "voiceover": "spoken script, ${minWords}-${maxWords} words total. MUST start immediately with the hook (beginning with '${openCue}'). Order: hook (with its open loop), then the value lesson (which RESOLVES the loop, front-loaded), then at ~80% the gratitude beat (the gratitudeBeat you wrote — the soft like/comment invitation, BEFORE any mention of the guide), then the supportive transition (the pitch you wrote — ONE short sentence), and FINALLY end on the closing question (the closingQuestion you wrote), preceded by a '[long pause]'. The closing question must emotionally rhyme with the hook so the reel loops seamlessly. Keep the same sibling warmth throughout; the gratitude beat, transition, and closing must match the 'gratitudeBeat', 'pitch', and 'closingQuestion' fields in meaning. Do NOT break character or sound like a commercial. Use dynamic shifts ('[voice cracks]/[soft sigh]' for vulnerability, '[soft whisper]' for raw mid-reel moments, '[grounded with warmth]' for protective truth). Reserve '[silence]'/'[long pause]' for AFTER the lesson — never in the first 3 seconds.",`,
+    `  "voiceover": "spoken script, ${minWords}-${maxWords} words total. MUST start immediately with the hook (beginning with '${openCue}'). Order: hook (with its open loop), then the value lesson (which RESOLVES the loop, front-loaded), then at ~80% the gratitude beat (the gratitudeBeat you wrote — the soft like/comment invitation, BEFORE any mention of the guide), then the supportive transition (the pitch you wrote — ONE short sentence), and FINALLY end on the closing question (the closingQuestion you wrote), preceded by a '[long pause]'. The closing question must emotionally rhyme with the hook so the reel loops seamlessly. Keep the same sibling warmth throughout; the gratitude beat, transition, and closing must match the 'gratitudeBeat', 'pitch', and 'closingQuestion' fields in meaning. Do NOT break character or sound like a commercial. Stay in this reel's vibe — use dynamic shifts (${vibe.voiceoverHint}). Reserve '[silence]'/'[long pause]' for AFTER the lesson — never in the first 3 seconds.",`,
     '  "hashtags": "8-12 Instagram hashtags as ONE space-separated string, each starting with #, derived from THIS script\'s specific scenario and feeling. Mix broad + specific; female self-worth/boundaries/relationship niche. No spaces inside tags, no emojis, no duplicates.",',
     '  "performanceDirection": "short note on the vocal shifts, focusing on the sibling warmth, vulnerability, and empathy."',
     "}"

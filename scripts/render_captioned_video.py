@@ -196,7 +196,17 @@ def calculate_timings(phrases, total_audio_duration):
         'soft whisper': 0.0,
         'catch in throat': 0.0,
         'tremble': 0.0,
-        'grounded with warmth': 0.0
+        'grounded with warmth': 0.0,
+        # Excited / empowered vibe cues — stripped from captions, no added pause so energy stays up.
+        'bright': 0.0,
+        'smiling': 0.0,
+        'energised': 0.0,
+        'energetic': 0.0,
+        'playful': 0.0,
+        'building energy': 0.0,
+        'firm': 0.0,
+        'steady': 0.0,
+        'quiet strength': 0.0
     }
     
     # Timings for punctuation (realistic pauses for Gemini TTS)
@@ -320,17 +330,22 @@ def generate_ass_file(segments, title, output_ass_path, hook=""):
     title_font = "Carlito"
     title_size = "48"
     title_color = "&H00EDF9FF"   # Soft cream title
-    title_outline = "3"
-    title_shadow = "0"
+    title_outline = "5"          # thicker stroke so the persistent title reads over real footage
+    title_shadow = "2"           # drop shadow for separation from busy backgrounds
     title_margin_v = "180"
     
     caption_font = "Carlito"     # Bundled Arial-metric face; see fonts_conf_template note above
     caption_size = "64"          # Slightly smaller than 76 to fit cleanly under title card
     caption_color = "&H00FFFFFF"  # White text
-    caption_outline = "4"         # Thick black outline
+    # PAST: BorderStyle 1 = black outline only.
+    # ISSUE: over random real footage (bright/busy), a thin outline isn't enough — captions vanish.
+    # PRESENT: BorderStyle 3 draws a translucent dark PLATE behind each caption chunk for guaranteed
+    #          contrast on any background. RATIONALE: the user reads these muted, so legibility wins.
+    caption_outline = "6"         # box padding around the text (BorderStyle 3)
     caption_shadow = "0"
     caption_italic = "0"
-    caption_border_style = "1"
+    caption_border_style = "3"    # opaque/translucent box behind text
+    caption_box_color = "&H40000000"  # ~75% opaque black plate (alpha 0x40), the readability scrim
     caption_back_color = "&H00000000"
     caption_alignment = "8"       # Aligned top-center below title card
     caption_margin_v = "380"      # Positioned below title card (at 180)
@@ -344,7 +359,7 @@ ScaledBorderAndShadow: yes
 [V4+ Styles]
 Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
 Style: TitleCard,{title_font},{title_size},{title_color},&H00000000,&H80000000,&H00000000,1,0,0,0,100,100,0,0,1,{title_outline},{title_shadow},8,60,60,{title_margin_v},1
-Style: ActiveCaptions,{caption_font},{caption_size},{caption_color},&H0000FFFF,&H00000000,{caption_back_color},1,{caption_italic},0,0,100,100,1,0,{caption_border_style},{caption_outline},{caption_shadow},{caption_alignment},80,80,{caption_margin_v},1
+Style: ActiveCaptions,{caption_font},{caption_size},{caption_color},&H0000FFFF,{caption_box_color},{caption_back_color},1,{caption_italic},0,0,100,100,1,0,{caption_border_style},{caption_outline},{caption_shadow},{caption_alignment},80,80,{caption_margin_v},1
 Style: HookCard,Carlito,72,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,1,0,0,0,100,100,0,0,3,4,0,5,90,90,0,1
 
 [Events]
@@ -434,8 +449,20 @@ def escape_filter_path(path):
     # Escape colons and backslashes for FFmpeg filter graph without surrounding single quotes
     return path.replace("\\", "/").replace(":", "\\:")
 
+# PAST: the reel encoded at 1080x1920.
+# ISSUE: full-HD vertical encoding is the heaviest step and, with several runs, pushed the Render
+#        free tier (512MB) into OOM restarts.
+# PRESENT: encode at 720x1280 by default (a third of the pixels -> much lower ffmpeg memory/CPU),
+#          overridable via RENDER_WIDTH/RENDER_HEIGHT env. The ASS caption canvas stays 1080x1920,
+#          so libass scales the overlay down proportionally and the layout is visually unchanged.
+# RATIONALE: 720x1280 is well above Instagram's minimum and indistinguishable in-feed, while keeping
+#            peak memory comfortably inside the free tier.
+RENDER_W = int(os.environ.get("RENDER_WIDTH", "720"))
+RENDER_H = int(os.environ.get("RENDER_HEIGHT", "1280"))
+
+
 def render_video(video_path, audio_path, ass_path, output_path, duration):
-    print(f"Rendering Hormozi styled video reel...")
+    print(f"Rendering Hormozi styled video reel at {RENDER_W}x{RENDER_H}...")
     
     outro_video_path = os.path.join(workspace, "Doc/Final/Video Project 1.mp4")
     has_outro = os.path.exists(outro_video_path)
@@ -451,18 +478,18 @@ def render_video(video_path, audio_path, ass_path, output_path, duration):
         
         if t_bg <= 0:
             # Main audio is shorter than or equal to the outro video, so just show the outro video scaled/resampled
-            filter_graph = f"[2:v]scale=1080:1920,fps=30[v0];[v0]subtitles={escaped_ass_path}[v]"
+            filter_graph = f"[2:v]scale={RENDER_W}:{RENDER_H}:force_original_aspect_ratio=increase,crop={RENDER_W}:{RENDER_H},fps=30[v0];[v0]subtitles={escaped_ass_path}[v]"
         else:
             # Concatenate scaled background loop and scaled outro video
             filter_graph = (
-                f"[0:v]trim=end={t_bg:.2f},setpts=PTS-STARTPTS,scale=1080:1920,fps=30[bg];"
-                f"[2:v]trim=end={outro_dur:.2f},setpts=PTS-STARTPTS,scale=1080:1920,fps=30[outro];"
+                f"[0:v]trim=end={t_bg:.2f},setpts=PTS-STARTPTS,scale={RENDER_W}:{RENDER_H}:force_original_aspect_ratio=increase,crop={RENDER_W}:{RENDER_H},fps=30[bg];"
+                f"[2:v]trim=end={outro_dur:.2f},setpts=PTS-STARTPTS,scale={RENDER_W}:{RENDER_H}:force_original_aspect_ratio=increase,crop={RENDER_W}:{RENDER_H},fps=30[outro];"
                 f"[bg][outro]concat=n=2:v=1:a=0[vconcat];"
                 f"[vconcat]subtitles={escaped_ass_path}[v]"
             )
     else:
         print("[Outro Video] Not found, rendering with full background loop only.")
-        filter_graph = f"[0:v]scale=1080:1920,fps=30[v0];[v0]subtitles={escaped_ass_path}[v]"
+        filter_graph = f"[0:v]scale={RENDER_W}:{RENDER_H}:force_original_aspect_ratio=increase,crop={RENDER_W}:{RENDER_H},fps=30[v0];[v0]subtitles={escaped_ass_path}[v]"
         
     cmd = [
         ffmpeg_bin,
@@ -495,7 +522,22 @@ def render_video(video_path, audio_path, ass_path, output_path, duration):
     print(f"Successfully rendered video: {output_path}")
 
 def main():
+    # PRESENT: try a RANDOM background video from the Drive folder; fall back to the bundled loop.
+    # RATIONALE: varied real footage (instead of one fixed clip) keeps the feed fresh. Best-effort —
+    #            any Drive failure silently uses the local loop so a render never breaks.
     video_file = os.path.join(workspace, "yoyo_loop.mp4")
+    try:
+        sys.path.insert(0, scripts_dir)
+        from drive_bg import download_random_background
+        bg = download_random_background(os.path.join(workspace, "generated-audio", "bg_random.mp4"))
+        if bg and os.path.exists(bg):
+            video_file = bg
+            print(f"[BG] Using random Drive background: {os.path.basename(bg)}")
+        else:
+            print("[BG] Using local background loop (no Drive video).")
+    except Exception as e:
+        print(f"[BG] Drive background unavailable ({e}); using local loop.")
+
     audio_file = os.path.join(workspace, "generated-audio/mixed-voiceover-latest.wav")
     script_file = os.path.join(workspace, "generated-audio/marketing-script-latest.md")
     

@@ -53,6 +53,41 @@ if (fs.existsSync(dotenvPath)) {
 const app = express();
 const PORT = process.env.PORT || 3000;
 
+// PAST: a single ffmpeg render per request, unserialised.
+// ISSUE: two+ runs in parallel (e.g. firing several /t/:id strategy URLs at once) blew past
+//        Render's 512MB free tier and triggered an OOM restart. ffmpeg already runs single-threaded,
+//        so concurrency — not one render — is the cause.
+// PRESENT: every request is placed on a FIFO queue and processed ONE AT A TIME. No request is
+//          dropped; they simply wait their turn.
+// RATIONALE: serialising the renders keeps peak memory bounded to a single ffmpeg while preserving
+//            every job. A per-job watchdog kills any hung run so one bad render can't wedge the queue.
+const JOB_TIMEOUT_MS = 12 * 60 * 1000; // hard cap per run; a hung render is killed and the queue moves on
+const reelQueue = [];
+let queueActive = false;
+
+// Enqueue a pipeline job. The HTTP response is held open and sent when the job actually completes,
+// so the caller still receives the final videoUrl/result — just after any earlier jobs finish.
+function enqueueReelJob(job) {
+  job.clientGone = false;
+  job.res.on('close', () => { job.clientGone = true; });
+  reelQueue.push(job);
+  console.log(`[Queue] Enqueued ${job.strategyId || 'manual'} — ${reelQueue.length} waiting, worker ${queueActive ? 'busy' : 'idle'}`);
+  processQueue();
+}
+
+// Run the next job if the worker is free; chains to the following job when it finishes.
+function processQueue() {
+  if (queueActive) return;
+  const job = reelQueue.shift();
+  if (!job) return;
+  if (job.clientGone && !job.res.writableEnded) {
+    console.log('[Queue] Skipping a job whose client disconnected before it started.');
+    return processQueue();
+  }
+  queueActive = true;
+  runReelJob(job, () => { queueActive = false; processQueue(); });
+}
+
 app.use(express.json());
 
 // Serve static generated media files
@@ -158,74 +193,10 @@ app.all('/api/generate-reel', (req, res) => {
 
   // Support both body and query parameters for options
   const query = req.query.query || req.body.query || 'random';
-  console.log(`[Render Server] Generating reel with query: ${query}`);
+  console.log(`[Render Server] Queueing reel with query: ${query}`);
 
-  const logPath = path.join(__dirname, 'generated-audio/pipeline.log');
-  const timestamp = new Date().toISOString();
-  fs.writeFileSync(logPath, `=== PIPELINE STARTED: ${timestamp} (query: ${query}) ===\n\n`);
-
-  // Run the generator, renderer, and upload pipeline scripts in a memory-bounded shell
-  const cmd = `node --max-old-space-size=96 scripts/generate-marketing-script.mjs "${query}" && python3 scripts/render_captioned_video.py && python3 scripts/upload_pipeline.py`;
-  
-  const [shell, args] = process.platform === 'win32' ? ['cmd.exe', ['/s', '/c', cmd]] : ['/bin/sh', ['-c', cmd]];
-  const child = spawn(shell, args, { cwd: __dirname });
-
-  let stdoutData = "";
-  let stderrData = "";
-
-  child.stdout.on('data', (data) => {
-    const text = data.toString();
-    process.stdout.write(text); // Pipe logs directly to Render console stream
-    fs.appendFileSync(logPath, text); // Save log to disk
-    stdoutData += text;
-    if (stdoutData.length > 50000) {
-      stdoutData = stdoutData.slice(-50000); // Limit buffer memory footprint to 50KB
-    }
-  });
-
-  child.stderr.on('data', (data) => {
-    const text = data.toString();
-    process.stderr.write(text); // Pipe error logs directly to Render console stream
-    fs.appendFileSync(logPath, text); // Save log to disk
-    stderrData += text;
-    if (stderrData.length > 50000) {
-      stderrData = stderrData.slice(-50000); // Limit buffer memory footprint to 50KB
-    }
-  });
-
-  child.on('close', (code) => {
-    const closeTime = new Date().toISOString();
-    fs.appendFileSync(logPath, `\n=== PIPELINE FINISHED: ${closeTime} (exit code: ${code}) ===\n`);
-
-    if (code !== 0) {
-      console.error(`[Render Server] Command execution failed with exit code: ${code}`);
-      return res.status(500).json({
-        success: false,
-        error: `Command failed with exit code ${code}`,
-        details: stderrData
-      });
-    }
-
-    console.log(`[Render Server] Reel generated and published successfully!`);
-
-    // Verify output files exist
-    const videoPath = 'generated-audio/rendered_reel_latest.mp4';
-    if (fs.existsSync(path.join(__dirname, videoPath))) {
-      return res.json({
-        success: true,
-        videoUrl: `/generated-audio/rendered_reel_latest.mp4`,
-        scriptUrl: `/generated-audio/marketing-script-latest.md`,
-        stdout: stdoutData
-      });
-    } else {
-      return res.status(500).json({
-        success: false,
-        error: 'Video file was not generated.',
-        stdout: stdoutData,
-        details: stderrData
-      });
-    }
-  });
+  // Every request joins the FIFO queue; the response is held and sent when this job runs.
+  enqueueReelJob({ query, extraEnv: {}, strategyId: null, res });
 });
 
 app.all('/api/test-step', (req, res) => {
@@ -308,16 +279,37 @@ function isAuthorized(req) {
   return Boolean(token && token === expected);
 }
 
-// Shared generate -> render -> upload runner. The existing /api/generate-reel is left untouched
-// to avoid any regression; this helper backs only the strategy routes and injects extra env.
-function runReelPipeline({ query, extraEnv = {}, strategyId = null }, res) {
+// The queue worker: run ONE job's generate -> render -> upload pipeline, respond to its caller,
+// then signal completion via onDone() so the queue advances. Backs both /api/generate-reel and the
+// /t/:id strategy routes. Has its own timeout-kill so a hung render is cleaned up, never stalling.
+function runReelJob(job, onDone) {
+  const { query, extraEnv = {}, strategyId = null, res } = job;
+
+  // finish() guarantees exactly-once: it answers the caller (only if still connected), clears the
+  // watchdog, and releases the queue — no matter which path (success / failure / spawn error / timeout).
+  let settled = false;
+  const finish = (status, payload) => {
+    if (settled) return;
+    settled = true;
+    clearTimeout(killTimer);
+    if (!res.writableEnded) res.status(status).json(payload);
+    onDone();
+  };
+
   const logPath = path.join(__dirname, 'generated-audio/pipeline.log');
   const label = strategyId ? `strategy: ${strategyId}, ` : '';
   fs.writeFileSync(logPath, `=== PIPELINE STARTED: ${new Date().toISOString()} (${label}query: ${query}) ===\n\n`);
 
   const cmd = `node --max-old-space-size=96 scripts/generate-marketing-script.mjs "${query}" && python3 scripts/render_captioned_video.py && python3 scripts/upload_pipeline.py`;
   const [shell, args] = process.platform === 'win32' ? ['cmd.exe', ['/s', '/c', cmd]] : ['/bin/sh', ['-c', cmd]];
-  const child = spawn(shell, args, { cwd: __dirname, env: { ...process.env, ...extraEnv } });
+  // detached so we can kill the whole process group (sh + node + python + ffmpeg) on timeout.
+  const child = spawn(shell, args, { cwd: __dirname, env: { ...process.env, ...extraEnv }, detached: process.platform !== 'win32' });
+
+  // Cleanup watchdog: kill a hung run and free its memory so the queue is never blocked.
+  const killTimer = setTimeout(() => {
+    console.warn(`[Queue] Job ${strategyId || 'manual'} exceeded ${JOB_TIMEOUT_MS / 60000}min — killing process group.`);
+    try { process.kill(-child.pid, 'SIGKILL'); } catch (_) { try { child.kill('SIGKILL'); } catch (__) {} }
+  }, JOB_TIMEOUT_MS);
 
   let stdoutData = '';
   let stderrData = '';
@@ -335,14 +327,20 @@ function runReelPipeline({ query, extraEnv = {}, strategyId = null }, res) {
     stderrData += text;
     if (stderrData.length > 50000) stderrData = stderrData.slice(-50000);
   });
+
+  child.on('error', (err) => {
+    fs.appendFileSync(logPath, `\n=== PIPELINE SPAWN ERROR: ${err.message} ===\n`);
+    finish(500, { success: false, strategy: strategyId, error: `Failed to start pipeline: ${err.message}` });
+  });
+
   child.on('close', (code) => {
     fs.appendFileSync(logPath, `\n=== PIPELINE FINISHED: ${new Date().toISOString()} (exit code: ${code}) ===\n`);
     if (code !== 0) {
-      return res.status(500).json({ success: false, strategy: strategyId, error: `Command failed with exit code ${code}`, details: stderrData });
+      return finish(500, { success: false, strategy: strategyId, error: `Command failed with exit code ${code}`, details: stderrData });
     }
     const videoPath = 'generated-audio/rendered_reel_latest.mp4';
     if (fs.existsSync(path.join(__dirname, videoPath))) {
-      return res.json({
+      return finish(200, {
         success: true,
         strategy: strategyId,
         videoUrl: '/generated-audio/rendered_reel_latest.mp4',
@@ -350,7 +348,7 @@ function runReelPipeline({ query, extraEnv = {}, strategyId = null }, res) {
         stdout: stdoutData
       });
     }
-    return res.status(500).json({ success: false, strategy: strategyId, error: 'Video file was not generated.', stdout: stdoutData, details: stderrData });
+    return finish(500, { success: false, strategy: strategyId, error: 'Video file was not generated.', stdout: stdoutData, details: stderrData });
   });
 }
 
@@ -363,6 +361,16 @@ app.get('/api/strategies', (req, res) => {
     out[id] = { label: s.label, hypothesis: s.hypothesis };
   }
   res.json({ success: true, strategies: out });
+});
+
+// Queue visibility: how many jobs are waiting and whether one is currently running.
+app.get('/api/queue', (req, res) => {
+  res.json({
+    success: true,
+    running: queueActive,
+    waiting: reelQueue.length,
+    upcoming: reelQueue.map((j) => j.strategyId || 'manual')
+  });
 });
 
 // Run a strategy preset end-to-end and POST live. e.g. GET /t/t3?apikey=YOUR_KEY
@@ -380,10 +388,12 @@ app.all('/t/:id', (req, res) => {
     STRAT_ID: id,
     STRAT_HOOK_ANGLE: strat.hookAngle || '',
     STRAT_OPEN_STYLE: strat.openStyle || 'grounded',
+    STRAT_VIBE: strat.vibe || 'tender',
+    STRAT_FRAMING: strat.framing || 'pain',
     STRAT_MAX_WORDS: String(strat.maxWords || 90),
     STRAT_HOOK_CARD_SECS: String(strat.hookCardSecs != null ? strat.hookCardSecs : 2.0)
   };
-  runReelPipeline({ query: strat.section || 'random', extraEnv, strategyId: id }, res);
+  enqueueReelJob({ query: strat.section || 'random', extraEnv, strategyId: id, res });
 });
 
 app.listen(PORT, '0.0.0.0', () => {

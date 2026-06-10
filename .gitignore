@@ -45,3 +45,7 @@ fonts/.uuid*
 # Dynamic engagement logs
 reels_engagement.csv
 
+
+# Drive service-account key (NEVER commit) + downloaded random background
+drive_service_account.json
+generated-audio/bg_random.mp4
